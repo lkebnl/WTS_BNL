@@ -22,7 +22,7 @@ import os
 # Add the parent directory to sys.path so 'function' can be imported
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import function.Rigol_DP800 as rigol
-
+from function.report_path import get_test_subdir, init_report_session
 from function.cls_udp import CLS_UDP
 from function.tcp_cfg import TCP_CFG
 import struct
@@ -37,6 +37,248 @@ import platform
 import subprocess
 
 ## =========================================
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+def print_header(msg):
+    print("\033[35m" + "=" * 60 + "\033[0m")
+    print("\033[35m" + msg + "\033[0m")
+    print("\033[35m" + "=" * 60 + "\033[0m")
+
+def print_pass(msg):
+    print("\033[32m" + msg + "\033[0m")
+
+def print_fail(msg):
+    print("\033[31m" + msg + "\033[0m")
+
+def print_warning(msg):
+    print("\033[33m" + msg + "\033[0m")
+
+def print_info(msg):
+    print("\033[36m" + msg + "\033[0m")
+
+# ============================================================================
+# TROUBLESHOOTING MESSAGES
+# ============================================================================
+TROUBLESHOOT = {
+    "wib_service_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: WIB SERVICE RESTART FAILED                   │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • WIB not fully booted                                     │
+│  • Network connection lost                                  │
+│  • WIB firmware crashed                                     │
+│  • Telnet service not responding                            │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check network cable connection to WIB                   │
+│  2. Verify WIB IP address (192.168.121.1)                   │
+│  3. Power cycle WIB and wait 30s for boot                   │
+│  4. Check if WIB LEDs indicate normal operation             │
+│  5. Try manual telnet: telnet 192.168.121.1                 │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "seoff_power_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: SEOFF MODE POWER CHECK FAILED                │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • FEMB not properly seated in slot                         │
+│  • Power regulator failure on FEMB                          │
+│  • Damaged FEMB connector pins                              │
+│  • WIB slot power circuit issue                             │
+│                                                             │
+│  Actions:                                                   │
+│  1. Power off and reseat FEMB in slot                       │
+│  2. Inspect FEMB connector for bent/damaged pins            │
+│  3. Check WIB slot connector for debris                     │
+│  4. Try FEMB in different slot to isolate issue             │
+│  5. Test with known-good FEMB if available                  │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "seon_power_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: SEON (SDC) MODE POWER CHECK FAILED           │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • SDC configuration not applied correctly                  │
+│  • FEMB ASIC configuration error                            │
+│  • Power rail instability in SDC mode                       │
+│  • Communication error during configuration                 │
+│                                                             │
+│  Actions:                                                   │
+│  1. Restart WIB service and retry                           │
+│  2. Check FEMB configuration registers                      │
+│  3. Verify power supply stability                           │
+│  4. Reduce number of active channels if overloaded          │
+│  5. Check for thermal issues on FEMB                        │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "diff_power_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: DIFF MODE POWER CHECK FAILED                 │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Differential mode configuration error                    │
+│  • Increased power draw in DIFF mode                        │
+│  • ASIC configuration not properly applied                  │
+│  • Power supply current limit reached                       │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check PSU current limit settings                        │
+│  2. Verify FEMB cooling is adequate                         │
+│  3. Restart WIB service and retry configuration             │
+│  4. Check for shorts on differential signal lines           │
+│  5. Reduce operating voltage if within spec                 │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "udp_data_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: UDP DATA ACQUISITION FAILED                  │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • UDP stream not enabled                                   │
+│  • Network congestion or packet loss                        │
+│  • WIB UDP firmware issue                                   │
+│  • Firewall blocking UDP packets                            │
+│                                                             │
+│  Actions:                                                   │
+│  1. Verify UDP port is open (check firewall)                │
+│  2. Check network cable and switch connection               │
+│  3. Restart WIB service to reset UDP stream                 │
+│  4. Verify WIB UDP firmware version                         │
+│  5. Try reducing data rate if buffer overflow               │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "asic_readout_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: ASIC DATA READOUT FAILED                     │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • ASIC not responding to configuration                     │
+│  • Data link between FEMB and WIB broken                    │
+│  • Clock/sync signal issue                                  │
+│  • ASIC power not stable                                    │
+│                                                             │
+│  Actions:                                                   │
+│  1. Re-run FEMB configuration sequence                      │
+│  2. Check FEMB power rails are within spec                  │
+│  3. Verify clock and sync signals present                   │
+│  4. Try reading from different ASIC                         │
+│  5. Power cycle FEMB and reconfigure                        │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "tcp_link_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: TCP COMMUNICATION FAILED                     │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • WIB not reachable on network                             │
+│  • TCP port not responding                                  │
+│  • WIB software crashed                                     │
+│  • Network configuration error                              │
+│                                                             │
+│  Actions:                                                   │
+│  1. Ping WIB: ping 192.168.121.1                            │
+│  2. Check Ethernet cable connections                        │
+│  3. Verify PC network interface configuration               │
+│  4. Power cycle WIB if unresponsive                         │
+│  5. Check WIB boot logs via serial console                  │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "femb_voltage_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: FEMB VOLTAGE OUT OF RANGE                    │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • FEMB power regulator failure                             │
+│  • Excessive load on power rail                             │
+│  • Poor connection at FEMB connector                        │
+│  • WIB power distribution issue                             │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check FEMB connector seating                            │
+│  2. Measure voltage at FEMB test points                     │
+│  3. Verify WIB power supply is stable                       │
+│  4. Check for shorts or damaged components                  │
+│  5. Try FEMB in different slot                              │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "femb_current_high": """
+┌─────────────────────────────────────────────────────────────┐
+│  ⚠️  WARNING: FEMB CURRENT TOO HIGH                          │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Short circuit on FEMB                                    │
+│  • Component failure                                        │
+│  • Excessive ASIC activity                                  │
+│  • Thermal runaway condition                                │
+│                                                             │
+│  ⚠️  CAUTION: High current may indicate fault!               │
+│                                                             │
+│  Actions:                                                   │
+│  1. Power off FEMB slot immediately                         │
+│  2. Allow FEMB to cool down                                 │
+│  3. Inspect for visible damage or burns                     │
+│  4. Check for solder bridges or debris                      │
+│  5. Do not retry without thorough inspection                │
+└─────────────────────────────────────────────────────────────┘
+"""
+}
+
+# ============================================================================
+# VALIDATION FUNCTIONS
+# ============================================================================
+def validate_power_mode(mode_name, pwr_en, detailed_checks):
+    """Validate power mode test results and show troubleshooting if failed"""
+    if pwr_en == 0:
+        print_fail(f"  ✗ {mode_name} Mode Power Check FAILED")
+
+        # Show which rails failed
+        for rail in ["FE", "ADC", "CD", "BIAS"]:
+            for check_type in ["voltage", "current"]:
+                if not detailed_checks[rail][check_type]["pass"]:
+                    error_msg = detailed_checks[rail][check_type].get("error", "Unknown error")
+                    print_fail(f"    - {rail} {check_type}: {error_msg}")
+
+        # Show appropriate troubleshoot message
+        if mode_name == "SEOFF":
+            print(TROUBLESHOOT["seoff_power_fail"])
+        elif mode_name == "SEON":
+            print(TROUBLESHOOT["seon_power_fail"])
+        elif mode_name == "DIFF":
+            print(TROUBLESHOOT["diff_power_fail"])
+
+        return False
+    else:
+        print_pass(f"  ✓ {mode_name} Mode Power Check PASSED")
+        return True
+
+def validate_asic_data(chip_data, asic_num):
+    """Validate ASIC data readout"""
+    if chip_data is None:
+        print_fail(f"  ✗ ASIC {asic_num} Data Readout FAILED")
+        print(TROUBLESHOOT["asic_readout_fail"])
+        return False
+    else:
+        print_pass(f"  ✓ ASIC {asic_num} Data Readout OK")
+        return True
+
+def retry_prompt(test_name):
+    """Prompt user for retry, skip, or exit"""
+    print_warning(f"\n  {test_name} has failures.")
+    print("  Options:")
+    print("    [R] Retry this test")
+    print("    [S] Skip and continue")
+    print("    [E] Exit test")
+
+    while True:
+        choice = input("  Enter choice (R/S/E): ").strip().upper()
+        if choice in ['R', 'S', 'E']:
+            return choice
+        print("  Invalid choice. Please enter R, S, or E.")
 
 # === Helper function for robust WIB service restart ===
 def safe_restart_wib_service(max_retries=5, retry_delay=5):
@@ -53,9 +295,10 @@ def safe_restart_wib_service(max_retries=5, retry_delay=5):
         if success:
             return True
 
-        print(f"\033[31mWIB service restart attempt {attempt + 1} failed\033[0m")
+        print_fail(f"WIB service restart attempt {attempt + 1} failed")
 
-    # All retries exhausted - raise error to trigger test restart
+    # All retries exhausted - show troubleshoot and raise error
+    print(TROUBLESHOOT["wib_service_fail"])
     raise RuntimeError("WIB service restart failed after all retries - connection refused")
 
 ##  === 01 power start =====================
@@ -115,9 +358,10 @@ tcp = TCP_CFG()
 udp = CLS_UDP()
 conv = RAW_CONV()
 now = datetime.datetime.now()
-base_dir = os.path.dirname(os.path.abspath(__file__))
-target_file_path = os.path.join(base_dir, "..", "report", "WIB_to_FEMB_slot_01_power_report")
+# === Setup report subdirectory using centralized report_path module ===
+target_file_path = get_test_subdir("Test0401_FEMB_Slot1_Pulse")
 rootdir = target_file_path
+print(f"Report directory: {target_file_path}")
 
 ## ========== WIB monitor ADC ================
 monitor01 = tcp.wib_mon_adc_read()
@@ -235,7 +479,8 @@ for fembi in [1]:
     # Store detailed check results
     result_dict["detailed_checks"]["SEOFF"] = detailed_checks
 
-    # Log errors if any
+    # Validate and log errors
+    seoff_ok = validate_power_mode("SEOFF", pwr_en, detailed_checks)
     if pwr_en == 0:
         for rail in ["FE", "ADC", "CD", "BIAS"]:
             for check_type in ["voltage", "current"]:
@@ -246,9 +491,7 @@ for fembi in [1]:
                         "type": f"{rail} {check_type.upper()} Out of Range",
                         "description": detailed_checks[rail][check_type]["error"]
                     })
-        print("\033[33mWarning: SEOFF mode power check failed, but continuing test to collect all data\033[0m")
-    else:
-        print("\033[32mFEMB power consumption is in the normal range\033[0m")
+        print_warning("Continuing test to collect all data...")
 
     result_dict["power_vfe_ref"] = (v_fe, iref_fe)
     result_dict["power_vadc_ref"] = (v_adc, iref_adc)
@@ -283,7 +526,8 @@ for fembi in [1]:
     # Store detailed check results
     result_dict["detailed_checks"]["SEON"] = detailed_checks
 
-    # Log errors if any
+    # Validate and log errors
+    seon_ok = validate_power_mode("SEON", pwr_en, detailed_checks)
     if pwr_en == 0:
         for rail in ["FE", "ADC", "CD", "BIAS"]:
             for check_type in ["voltage", "current"]:
@@ -294,9 +538,7 @@ for fembi in [1]:
                         "type": f"{rail} {check_type.upper()} Out of Range",
                         "description": detailed_checks[rail][check_type]["error"]
                     })
-        print("\033[33mWarning: SEON mode power check failed, but continuing test to collect all data\033[0m")
-    else:
-        print("\033[32mFEMB power consumption is in the normal range\033[0m")
+        print_warning("Continuing test to collect all data...")
 
     result_dict["power_vfe_ref_sdc"] = (v_fe, iref_fe)
     result_dict["power_vadc_ref_sdc"] = (v_adc, iref_adc)
@@ -330,7 +572,8 @@ for fembi in [1]:
     # Store detailed check results
     result_dict["detailed_checks"]["DIFF"] = detailed_checks
 
-    # Log errors if any
+    # Validate and log errors
+    diff_ok = validate_power_mode("DIFF", pwr_en, detailed_checks)
     if pwr_en == 0:
         for rail in ["FE", "ADC", "CD", "BIAS"]:
             for check_type in ["voltage", "current"]:
@@ -341,9 +584,7 @@ for fembi in [1]:
                         "type": f"{rail} {check_type.upper()} Out of Range",
                         "description": detailed_checks[rail][check_type]["error"]
                     })
-        print("\033[33mWarning: DIFF mode power check failed, but continuing test to collect all data\033[0m")
-    else:
-        print("\033[32mFEMB power consumption is in the normal range\033[0m")
+        print_warning("Continuing test to collect all data...")
 
     result_dict["power_vfe_ref_diff"] = (v_fe, iref_fe)
     result_dict["power_vadc_ref_diff"] = (v_adc, iref_adc)
@@ -455,15 +696,18 @@ for fembi in [1]:
                 val = 1000
                 data = udp.get_rawdata_packets(val=val)
                 chip_data = conv.raw_conv_feedloc(data)
-                if chip_data != None:
+                if chip_data is not None:
                     end_while = True
                     femb_data.append(chip_data)
                     for i in range(16):
                         dset[i] = f.create_dataset('CH{}'.format(asic * 16 + i), (len(chip_data[i]),), maxshape=(None,),
                                                    dtype='u2', chunks=True)
                         dset[i][:] = chip_data[i]
+                    print_pass(f"    ✓ ASIC {asic} data acquired successfully")
                 else:
                     end_while = False
+                    print_fail(f"    ✗ ASIC {asic} data acquisition FAILED")
+                    print(TROUBLESHOOT["asic_readout_fail"])
             print("Start data analysis...")
             ana = chkout_top.data_ana(femb_data)
             if end_while:

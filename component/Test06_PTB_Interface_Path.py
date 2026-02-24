@@ -13,18 +13,298 @@ import datetime
 
 
 import function.Rigol_DP800 as rigol
+from function.report_path import get_report_path, init_report_session
 from function.ping_host import ping_host
 import file.report_dict as rp_dict
 
+# ============================================================
+# TROUBLESHOOT HELPER FUNCTIONS
+# ============================================================
+
+def print_header(msg):
+    """Print header with purple color"""
+    print("\033[35m" + "=" * 60 + "\033[0m")
+    print("\033[35m" + msg + "\033[0m")
+    print("\033[35m" + "=" * 60 + "\033[0m")
+
+def print_pass(msg):
+    """Print pass message with green color"""
+    print("\033[32m" + msg + "\033[0m")
+
+def print_fail(msg):
+    """Print fail message with red color"""
+    print("\033[31m" + msg + "\033[0m")
+
+def print_warning(msg):
+    """Print warning message with yellow color"""
+    print("\033[33m" + msg + "\033[0m")
+
+def print_info(msg):
+    """Print info message with cyan color"""
+    print("\033[36m" + msg + "\033[0m")
+
+# ============================================================
+# TROUBLESHOOT MESSAGES
+# ============================================================
+
+TROUBLESHOOT = {
+    "psu_voltage_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: POWER SUPPLY VOLTAGE OUT OF RANGE            │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • PSU not properly connected                               │
+│  • PSU output disabled                                      │
+│  • Load exceeds PSU capacity                                │
+│  • Faulty power cable                                       │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check Rigol DP800 front panel for output status         │
+│  2. Verify power cables are securely connected              │
+│  3. Check for shorts on WIB power input                     │
+│  4. Verify PSU voltage/current settings                     │
+│  5. Try power cycling the PSU                               │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "psu_current_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: POWER SUPPLY CURRENT ABNORMAL                │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • WIB not drawing expected current (too low)               │
+│  • Short circuit on WIB (too high)                          │
+│  • WIB not fully initialized                                │
+│  • Component failure on WIB                                 │
+│                                                             │
+│  CAUTION: High current may indicate fault!                  │
+│                                                             │
+│  Actions:                                                   │
+│  1. If current too low: check WIB power connection          │
+│  2. If current too high: power off immediately              │
+│  3. Inspect WIB for visible damage                          │
+│  4. Check for debris or shorts on connectors                │
+│  5. Verify WIB boot status via serial console               │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "ping_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: WIB PING FAILED                              │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • WIB not fully booted (need ~60s after power on)          │
+│  • Network interface not configured                         │
+│  • Ethernet cable issue                                     │
+│  • IP address conflict on network                           │
+│                                                             │
+│  Actions:                                                   │
+│  1. Wait additional 30 seconds and retry                    │
+│  2. Check Ethernet link LEDs on WIB and switch              │
+│  3. Verify PC network interface is on 192.168.121.x         │
+│  4. Try different Ethernet cable                            │
+│  5. Check WIB serial console for boot errors                │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "si5342_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: SI5342 CLOCK CHIP NOT DETECTED               │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • SI5342 chip not properly soldered                        │
+│  • I2C bus multiplexer not configured                       │
+│  • Clock chip power supply issue                            │
+│  • I2C communication error                                  │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check SI5342 power rail voltage                         │
+│  2. Verify I2C bus configuration (tcp.tcp_poke(1, 0x01))    │
+│  3. Check for cold solder joints on SI5342                  │
+│  4. Measure I2C clock and data signals                      │
+│  5. Try resetting I2C bus and retry                         │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "si5344_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: SI5344 CLOCK CHIP NOT DETECTED               │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • SI5344 chip not properly soldered                        │
+│  • I2C bus multiplexer not configured                       │
+│  • Clock chip power supply issue                            │
+│  • Previous SI5342 test affected bus state                  │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check SI5344 power rail voltage                         │
+│  2. Verify I2C bus configuration (tcp.tcp_poke(1, 0x00))    │
+│  3. Check for cold solder joints on SI5344                  │
+│  4. Reset I2C bus before retry                              │
+│  5. Check clock input signals to SI5344                     │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "fp_bk_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: FP/BK INTERFACE TEST FAILED                  │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Front panel / backplane connector issue                  │
+│  • FPGA configuration not loaded correctly                  │
+│  • Signal integrity problem on interface                    │
+│  • SI5344 clock not properly configured                     │
+│                                                             │
+│  Expected Value: 0x60000000                                 │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check front panel connector seating                     │
+│  2. Verify SI5344 configuration completed                   │
+│  3. Check FPGA status register                              │
+│  4. Inspect FP/BK interface signals with scope              │
+│  5. Try power cycling and reconfiguring                     │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "tcp_comm_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: TCP COMMUNICATION FAILED                     │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • WIB TCP server not responding                            │
+│  • Network connection interrupted                           │
+│  • WIB firmware issue                                       │
+│  • Register address invalid                                 │
+│                                                             │
+│  Actions:                                                   │
+│  1. Verify WIB is still reachable (ping test)               │
+│  2. Check TCP port connectivity                             │
+│  3. Power cycle WIB and retry                               │
+│  4. Check WIB firmware version                              │
+│  5. Monitor WIB serial console for errors                   │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "lemo_test_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: LEMO INTERFACE TEST FAILED                   │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • LEMO connector not properly connected                    │
+│  • Signal routing issue on board                            │
+│  • FPGA I/O configuration error                             │
+│  • External loopback cable missing                          │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check LEMO connector connections                        │
+│  2. Verify loopback cable is installed                      │
+│  3. Check FPGA pin configuration                            │
+│  4. Measure signals at LEMO connectors                      │
+│  5. Verify board assembly near LEMO connectors              │
+└─────────────────────────────────────────────────────────────┘
+"""
+}
+
+# ============================================================
+# VALIDATION FUNCTIONS
+# ============================================================
+
+def validate_power_supply(v1, c1, v2, c2, result_dict=None):
+    """Validate power supply voltage and current readings"""
+    errors = []
+
+    # Check voltage ranges (11.0V - 13.0V expected for 12V supply)
+    v1_ok = 11.0 <= v1 <= 13.0
+    v2_ok = 11.0 <= v2 <= 13.0
+
+    # Check current ranges (0.5A - 3.0A expected)
+    c1_ok = 0.5 <= c1 <= 3.0
+    c2_ok = 0.5 <= c2 <= 3.0
+
+    if not v1_ok:
+        errors.append(f"Ch1 Voltage {v1:.3f}V out of range (11.0-13.0V)")
+        print_fail(f"  ✗ Ch1 Voltage FAIL: {v1:.3f}V (expected 11.0-13.0V)")
+        print_warning(TROUBLESHOOT["psu_voltage_fail"])
+    else:
+        print_pass(f"  ✓ Ch1 Voltage PASS: {v1:.3f}V")
+
+    if not c1_ok:
+        errors.append(f"Ch1 Current {c1:.3f}A out of range (0.5-3.0A)")
+        print_fail(f"  ✗ Ch1 Current FAIL: {c1:.3f}A (expected 0.5-3.0A)")
+        print_warning(TROUBLESHOOT["psu_current_fail"])
+    else:
+        print_pass(f"  ✓ Ch1 Current PASS: {c1:.3f}A")
+
+    if not v2_ok:
+        errors.append(f"Ch2 Voltage {v2:.3f}V out of range (11.0-13.0V)")
+        print_fail(f"  ✗ Ch2 Voltage FAIL: {v2:.3f}V (expected 11.0-13.0V)")
+        print_warning(TROUBLESHOOT["psu_voltage_fail"])
+    else:
+        print_pass(f"  ✓ Ch2 Voltage PASS: {v2:.3f}V")
+
+    if not c2_ok:
+        errors.append(f"Ch2 Current {c2:.3f}A out of range (0.5-3.0A)")
+        print_fail(f"  ✗ Ch2 Current FAIL: {c2:.3f}A (expected 0.5-3.0A)")
+        print_warning(TROUBLESHOOT["psu_current_fail"])
+    else:
+        print_pass(f"  ✓ Ch2 Current PASS: {c2:.3f}A")
+
+    if result_dict is not None and errors:
+        if "error_log" not in result_dict:
+            result_dict["error_log"] = []
+        result_dict["error_log"].extend(errors)
+
+    return len(errors) == 0
+
+def validate_ping(ping_result, ip_address, result_dict=None):
+    """Validate ping test result"""
+    if ping_result:
+        print_pass(f"  ✓ Ping {ip_address}: SUCCESS")
+        return True
+    else:
+        print_fail(f"  ✗ Ping {ip_address}: FAILED")
+        if result_dict is not None:
+            if "error_log" not in result_dict:
+                result_dict["error_log"] = []
+            result_dict["error_log"].append(f"Ping to {ip_address} failed")
+        return False
+
+def validate_clock_chip(chip_value, expected_value, chip_name, result_dict=None):
+    """Validate clock chip detection"""
+    if chip_value == expected_value:
+        print_pass(f"  ✓ {chip_name} detected (0x{chip_value:02X})")
+        return True
+    else:
+        print_fail(f"  ✗ {chip_name} NOT detected (got 0x{chip_value:02X}, expected 0x{expected_value:02X})")
+        if result_dict is not None:
+            if "error_log" not in result_dict:
+                result_dict["error_log"] = []
+            result_dict["error_log"].append(f"{chip_name} not detected")
+        return False
+
+def validate_fp_bk_interface(value, expected_value, result_dict=None):
+    """Validate FP/BK interface test"""
+    if value == expected_value:
+        print_pass(f"  ✓ FP/BK Interface ACTIVE (0x{value:08X})")
+        return True
+    else:
+        print_fail(f"  ✗ FP/BK Interface ERROR (got 0x{value:08X}, expected 0x{expected_value:08X})")
+        if result_dict is not None:
+            if "error_log" not in result_dict:
+                result_dict["error_log"] = []
+            result_dict["error_log"].append(f"FP/BK interface test failed")
+        return False
+
 ## =========================================
 # initial
-print("\033[35m" + "A_RT06: PTB Interface Path" + "\033[0m")
+print_header("A_RT06: PTB Interface Path")
+
+# Result dictionary for error logging
+result_dict = {"error_log": []}
+
+# Test tracking
+tests_passed = 0
+tests_failed = 0
+test_failures = []
+
 t1 = time.time()
-print("\033[35m" + "A_RT03_01 : Power Rail" + "\033[0m")
-t1 = time.time()
+print_header("Power Rail Initialization")
 psu = rigol.RigolDP800()
 
-
+print_info("  Initializing Power Supply...")
 psu.safe_power_off()
 time.sleep(0.5)
 psu.set_channel(1, 12.0, 3.0, on=True)
@@ -32,7 +312,16 @@ psu.set_channel(2, 12.0, 3.0, on=True)
 time.sleep(10)
 v1, c1 = psu.measure(1)
 v2, c2 = psu.measure(2)  # FIXED: was psu.measure(1)
-print(f"WIB Power - Ch1: {v1:.3f}V {c1:.3f}A, Ch2: {v2:.3f}V {c2:.3f}A")
+print_info(f"  WIB Power - Ch1: {v1:.3f}V {c1:.3f}A, Ch2: {v2:.3f}V {c2:.3f}A")
+
+# Validate power supply
+print_info("\n  Validating Power Supply...")
+psu_ok = validate_power_supply(v1, c1, v2, c2, result_dict)
+if psu_ok:
+    tests_passed += 1
+else:
+    tests_failed += 1
+    test_failures.append("Power Supply")
 
 # Update CSV with WIB power measurements
 if rp_dict.csv_manager:
@@ -50,15 +339,31 @@ if rp_dict.csv_manager:
 
 time.sleep(1)
 
+print_info("\n  Waiting for WIB boot (57 seconds)...")
 time.sleep(30) # wait for boot
-print(c1)
-print(c2)
 time.sleep(27) # wait for boot
 
-# Internet Connection
-# TCP/IP 192.168.121.1
+# Network connectivity test
+print_header("Network Connectivity Test")
 ping1_result = ping_host(ip_address="192.168.121.1", count=4)
 ping2_result = ping_host(ip_address="192.168.121.2", count=4)
+
+# Validate ping results
+ping1_ok = validate_ping(ping1_result, "192.168.121.1", result_dict)
+ping2_ok = validate_ping(ping2_result, "192.168.121.2", result_dict)
+
+if not ping1_ok:
+    print_warning(TROUBLESHOOT["ping_fail"])
+    tests_failed += 1
+    test_failures.append("Ping 192.168.121.1")
+else:
+    tests_passed += 1
+
+if not ping2_ok:
+    tests_failed += 1
+    test_failures.append("Ping 192.168.121.2")
+else:
+    tests_passed += 1
 
 # Update CSV with ping test results
 if rp_dict.csv_manager:
@@ -71,10 +376,7 @@ if rp_dict.csv_manager:
     ])
 
 time.sleep(1)
-# input('open putty')
-# in the test, we use putty to run the script in WIB
-# in the real program, we will send message to enable the script
-print('run putty')
+print_info("  Initializing WIB interface...")
 import temp as initial
 time.sleep(1)
 
@@ -100,7 +402,8 @@ tcp.tcp_poke(1, 0x77)
 time.sleep(1)
 tcp.tcp_poke(1, 0)
 
-print('LEMO Test')
+print_header("LEMO Interface Test")
+print_info("  Testing LEMO connectors...")
 time.sleep(1)
 tcp.tcp_poke(0x18, 0x12)
 time.sleep(1)
@@ -196,38 +499,39 @@ print(a)
 
 
 # Si5344 SI5342
-
+print_header("Clock Chip Detection Test")
 
 # Confirm Clock Connection
 # reset
+print_info("  Resetting I2C bus...")
 time.sleep(0.1)
 tcp.tcp_poke(addr=0x0D, data=0x01)
 tcp.tcp_poke(addr=0x0D, data=0x00)
 
-
-
-
-
-# reset
+# reset again
 time.sleep(0.1)
 tcp.tcp_poke(addr=0x0D, data=0x01)
 tcp.tcp_poke(addr=0x0D, data=0x00)
+
 # Select Si5342
+print_info("\n  Testing SI5342 Clock Chip...")
 time.sleep(0.1)
 tcp.tcp_poke(addr=0x01, data=0x01)
 # Read SI5342
 SI5342 = tcp.I2C_PEEK(addr=0x02)
-print(SI5342)
-if SI5342 == 0x42:
-    print("SI5342 is Selected")
+si5342_ok = validate_clock_chip(SI5342, 0x42, "SI5342", result_dict)
+if si5342_ok:
     rp_dict.log06_PTB['SI5342'] = True
     si5342_result = "Selected"
     si5342_status = "PASS"
+    tests_passed += 1
 else:
-    print("SI5342 is NOT Selected")
     rp_dict.log06_PTB['SI5342'] = False
     si5342_result = "Not Selected"
     si5342_status = "FAIL"
+    tests_failed += 1
+    test_failures.append("SI5342 Clock Chip")
+    print_warning(TROUBLESHOOT["si5342_fail"])
 
 # Update CSV with SI5342 test result
 if rp_dict.csv_manager:
@@ -235,21 +539,24 @@ if rp_dict.csv_manager:
 
 
 # Select Si5344
+print_info("\n  Testing SI5344 Clock Chip...")
 time.sleep(0.1)
 tcp.tcp_poke(addr=0x01, data=0x00)
 # Read SI5344
 SI5344 = tcp.I2C_PEEK(addr=0x02)
-print(SI5344)
-if SI5344 == 0x44:
-    print("SI5344 is Selected")
+si5344_ok = validate_clock_chip(SI5344, 0x44, "SI5344", result_dict)
+if si5344_ok:
     rp_dict.log06_PTB['SI5344'] = True
     si5344_result = "Selected and Configured"
     si5344_status = "PASS"
+    tests_passed += 1
 else:
-    print("SI5344 is NOT Selected")
     rp_dict.log06_PTB['SI5344'] = False
     si5344_result = "Not Selected"
     si5344_status = "FAIL"
+    tests_failed += 1
+    test_failures.append("SI5344 Clock Chip")
+    print_warning(TROUBLESHOOT["si5344_fail"])
 
 # Update CSV with SI5344 test result (will update after configuration)
 if rp_dict.csv_manager:
@@ -766,39 +1073,60 @@ tcp.I2C_poke(0x0B25,0x02)
 
 time.sleep(0.1)
 # Select FP/BK
+print_header("FP/BK Interface Test")
+print_info("  Testing Front Panel / Backplane Interface...")
 time.sleep(0.1)
-print('Test FP/BK Interface')
 tcp.tcp_poke(addr=0x0F, data=0x02)
-# Read SI5344
 time.sleep(5)
 FP_BK = tcp.tcp_peek(addr=0x0D)
-print(FP_BK)
-if FP_BK == 0x60000000:
-    print("FP_BK is Selected")
+fp_bk_ok = validate_fp_bk_interface(FP_BK, 0x60000000, result_dict)
+if fp_bk_ok:
     rp_dict.log06_PTB['FP_BK'] = True
     fp_bk_result = "Interface Active (0x60000000)"
     fp_bk_status = "PASS"
+    tests_passed += 1
 else:
-    print("FP_BK is NOT Selected")
     rp_dict.log06_PTB['FP_BK'] = False
     fp_bk_result = f"Interface Error (0x{FP_BK:08X})"
     fp_bk_status = "FAIL"
+    tests_failed += 1
+    test_failures.append("FP/BK Interface")
+    print_warning(TROUBLESHOOT["fp_bk_fail"])
 
 # Update CSV with FP_BK interface test result
 if rp_dict.csv_manager:
     rp_dict.csv_manager.update_item("T06_12", fp_bk_result, status=fp_bk_status)
 
 # reset
+print_info("\n  Resetting interface...")
 time.sleep(0.1)
 tcp.tcp_poke(addr=0x0D, data=0x01)
 tcp.tcp_poke(addr=0x0D, data=0x00)
-#
+
+# === Test Summary ===
+print_header("Test06 Summary")
+print_info(f"  Tests Passed: {tests_passed}")
+print_info(f"  Tests Failed: {tests_failed}")
+
+if test_failures:
+    print_fail(f"\n  Failed Tests ({len(test_failures)}):")
+    for fail in test_failures:
+        print_fail(f"    - {fail}")
+    print_fail("\n  Overall Status: FAIL")
+else:
+    print_pass("\n  All tests passed!")
+    print_pass("  Overall Status: PASS")
+
+# Log errors if any
+if result_dict.get("error_log"):
+    print_warning(f"\n  Total errors logged: {len(result_dict['error_log'])}")
+
 time.sleep(0.5)
 psu.safe_power_off()
 psu.close()
 t2 = time.time()
 test_duration = round(t2 - t1, 2)
-print('time consumption = {}'.format(test_duration))
+print_info(f"\n  Test Duration: {test_duration} seconds")
 
 # Update CSV with test duration
 if rp_dict.csv_manager:
@@ -807,13 +1135,9 @@ if rp_dict.csv_manager:
 import os
 from datetime import datetime
 
-# === Setup relative path to ../report/PTB_Interface.html ===
-base_dir = os.path.dirname(os.path.abspath(__file__))
-target_file_path = os.path.join(base_dir, "..", "report", "WIB_06_PTB_Interface.html")
-print(target_file_path)
-
-# Ensure target directory exists
-os.makedirs(os.path.dirname(target_file_path), exist_ok=True)
+# === Setup report path using centralized report_path module ===
+target_file_path = get_report_path("Test06_PTB_Interface.html")
+print(f"Report path: {target_file_path}")
 
 # Determine overall status
 all_tests_passed = all(value == True for value in rp_dict.log06_PTB.values())

@@ -24,7 +24,7 @@ class RigolDP800:
     # def __init__(self, resource="USB0::0x1AB1::0x0E11::DP8C184550857::INSTR", timeout=5000):
     def __init__(self, resource="USB0::0x1AB1::0x0E11::DP8C184550811::INSTR", timeout=5000):
         self.rm = pyvisa.ResourceManager()
-        print(self.rm.list_resources())
+        # print(self.rm.list_resources())
 
         # 先尝试释放USB设备
         self._release_usb_device()

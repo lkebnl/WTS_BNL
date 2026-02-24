@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # from function.rigol_dp832_ps import RIGOL_PS_CTL
 import function.Rigol_DP800 as rigol
 from function.csv_manager import WIB_QC_CSV_Manager
-
+from function.report_path import get_report_path, init_report_session
 from function.ping_host import ping_host
 from datetime import datetime
 from function.cls_udp import CLS_UDP
@@ -16,12 +16,29 @@ from function.raw_convertor import RAW_CONV
 import time
 import file.report_dict as rp_dict
 
-print("\n" + "="*60)
-print("\033[35m" + "A_RT03_04 : FEMB Power Rail Test (4V)" + "\033[0m")
-print("="*60)
+# Image paths for instruction popups
+IMG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'GUI', 'output_pngs')
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+def print_header(msg):
+    print("\033[35m" + "=" * 60 + "\033[0m")
+    print("\033[35m" + msg + "\033[0m")
+    print("\033[35m" + "=" * 60 + "\033[0m")
+
+def print_pass(msg):
+    print("\033[32m" + msg + "\033[0m")
+
+def print_fail(msg):
+    print("\033[31m" + msg + "\033[0m")
+
+def print_warning(msg):
+    print("\033[33m" + msg + "\033[0m")
+
+print_header("A_RT03_04 : FEMB Power Rail Test (4V)")
 print("Testing 4 FEMB slots with 5 power rails each")
 print("Power rails: FE, CD, ADC, IDLE, BIAS")
-print("="*60 + "\n")
 
 t1 = time.time()
 psu = rigol.RigolDP800()
@@ -245,12 +262,9 @@ if rp_dict.csv_manager:
 
 import os
 
-# === Setup relative path to ../report/WIB_03_4V_power_report.html ===
-base_dir = os.path.dirname(os.path.abspath(__file__))
-target_file_path = os.path.join(base_dir, "..", "report", "WIB_03_4V_power_report.html")
-
-# Ensure target directory exists
-os.makedirs(os.path.dirname(target_file_path), exist_ok=True)
+# === Setup report path using centralized report_path module ===
+target_file_path = get_report_path("Test03_4V_power_report.html")
+print(f"Report path: {target_file_path}")
 
 # Define power rail thresholds for validation
 VOLTAGE_TOLERANCE = 0.15  # ±0.15V from set value
@@ -277,12 +291,16 @@ for slot_name, slot_dict in slot_data:
         v_meas = float(slot_dict.get(f'V_{rail}_meas', 0))
         i_meas = float(slot_dict.get(f'I_{rail}_meas', 0))
 
+        # Skip IDLE rail from pass/fail decision (informational only)
+        if rail == 'idle':
+            continue
+
         # Voltage check
         if abs(v_meas - v_set) > VOLTAGE_TOLERANCE:
             all_passed = False
 
         # Current check
-        rail_upper = rail.upper() if rail != 'idle' else 'IDLE'
+        rail_upper = rail.upper()
         if rail_upper in RAIL_THRESHOLDS:
             thresholds = RAIL_THRESHOLDS[rail_upper]
             if not (thresholds["I_min"] <= i_meas <= thresholds["I_max"]):
@@ -290,6 +308,73 @@ for slot_name, slot_dict in slot_data:
 
 overall_status = "PASS" if all_passed else "FAIL"
 overall_status_class = "pass" if all_passed else "fail"
+
+# ============================================================================
+# TEST SUMMARY
+# ============================================================================
+print_header("Test03: FEMB Power Rail Test (4V) - SUMMARY")
+
+# Count pass/fail for each slot (excluding IDLE rail from decision)
+slot_results = []
+for slot_name, slot_dict in slot_data:
+    slot_passed = True
+    for rail in ['fe', 'cd', 'adc', 'idle', 'bias']:
+        # Skip IDLE rail from pass/fail decision (informational only)
+        if rail == 'idle':
+            continue
+
+        v_set = float(slot_dict.get(f'v_{rail}', 0))
+        v_meas = float(slot_dict.get(f'V_{rail}_meas', 0))
+        i_meas = float(slot_dict.get(f'I_{rail}_meas', 0))
+
+        # Voltage check
+        if abs(v_meas - v_set) > VOLTAGE_TOLERANCE:
+            slot_passed = False
+
+        # Current check
+        rail_upper = rail.upper()
+        if rail_upper in RAIL_THRESHOLDS:
+            thresh = RAIL_THRESHOLDS[rail_upper]
+            if not (thresh["I_min"] <= i_meas <= thresh["I_max"]):
+                slot_passed = False
+
+    slot_results.append((slot_name, slot_passed))
+
+print("\n  Slot Results:")
+print("  " + "=" * 50)
+passed_count = 0
+failed_count = 0
+for slot_name, slot_result in slot_results:
+    if slot_result:
+        print_pass(f"    [PASS] {slot_name}")
+        passed_count += 1
+    else:
+        print_fail(f"    [FAIL] {slot_name}")
+        failed_count += 1
+
+# WIB Power check
+wib_v1 = rp_dict.log03_femb_slot0.get('wib_v1', 0)
+wib_c1 = rp_dict.log03_femb_slot0.get('wib_c1', 0)
+wib_v2 = rp_dict.log03_femb_slot0.get('wib_v2', 0)
+wib_c2 = rp_dict.log03_femb_slot0.get('wib_c2', 0)
+wib_power_ok = (11.0 <= wib_v1 <= 13.0 and 0.5 <= wib_c1 <= 3.0 and
+                11.0 <= wib_v2 <= 13.0 and 0.5 <= wib_c2 <= 3.0)
+
+if wib_power_ok:
+    print_pass(f"    [PASS] WIB Power Supply")
+else:
+    print_fail(f"    [FAIL] WIB Power Supply")
+
+print("  " + "=" * 50)
+total_power = (wib_v1 * wib_c1) + (wib_v2 * wib_c2)
+
+if all_passed:
+    print_pass(f"\n  OVERALL RESULT: PASS ({passed_count}/4 slots passed)")
+else:
+    print_fail(f"\n  OVERALL RESULT: FAIL ({failed_count} slot(s) failed)")
+
+print(f"\n  Test Duration: {test_duration} seconds")
+print(f"  Total WIB Power: {total_power:.3f} W")
 
 # Generate professional HTML report (Clean & Simple Style)
 html_content = f"""<!DOCTYPE html>
@@ -417,6 +502,10 @@ html_content = f"""<!DOCTYPE html>
         }}
         .status-fail {{
             color: #991b1b;
+        }}
+        .status-info {{
+            color: #6b7280;
+            font-style: italic;
         }}
         .error-cell {{
             background: #fee2e2 !important;
@@ -556,19 +645,26 @@ for slot_idx, (slot_name, slot_dict) in enumerate(slot_data):
         i_meas = float(slot_dict.get(f'I_{rail_key}_meas', 0))
         p_meas = v_meas * i_meas
 
-        # Voltage validation
-        v_error = abs(v_meas - v_set) > VOLTAGE_TOLERANCE
+        # IDLE rail is informational only, does not affect pass/fail
+        if rail_name == 'IDLE':
+            status = "INFO"
+            status_class = "status-info"
+            v_error_class = ''
+            i_error_class = ''
+        else:
+            # Voltage validation
+            v_error = abs(v_meas - v_set) > VOLTAGE_TOLERANCE
 
-        # Current validation
-        i_error = False
-        if rail_name in RAIL_THRESHOLDS:
-            thresholds = RAIL_THRESHOLDS[rail_name]
-            i_error = not (thresholds["I_min"] <= i_meas <= thresholds["I_max"])
+            # Current validation
+            i_error = False
+            if rail_name in RAIL_THRESHOLDS:
+                thresholds = RAIL_THRESHOLDS[rail_name]
+                i_error = not (thresholds["I_min"] <= i_meas <= thresholds["I_max"])
 
-        status = "FAIL" if (v_error or i_error) else "PASS"
-        status_class = "status-fail" if (v_error or i_error) else "status-pass"
-        v_error_class = ' class="error-cell"' if v_error else ''
-        i_error_class = ' class="error-cell"' if i_error else ''
+            status = "FAIL" if (v_error or i_error) else "PASS"
+            status_class = "status-fail" if (v_error or i_error) else "status-pass"
+            v_error_class = ' class="error-cell"' if v_error else ''
+            i_error_class = ' class="error-cell"' if i_error else ''
 
         html_content += f"""
                     <tr>
@@ -600,11 +696,19 @@ html_content += f"""
 with open(target_file_path, "w", encoding="utf-8") as f:
     f.write(html_content)
 
-print(f"\n\033[32mHTML report saved to: {target_file_path}\033[0m\n")
+print_pass(f"\nHTML report saved to: {target_file_path}\n")
+
+# Print test result summary
+print("=" * 60)
+print(f"  FEMB Power Rail Test (4V) - {overall_status}")
+print(f"  Test completed in {test_duration} seconds")
+print(f"  {passed_count}/4 slots passed")
+print(f"  Report: {target_file_path}")
+print("=" * 60)
 
 # Safe power off and cleanup
 time.sleep(0.5)
 print("Turning off power supply...")
 psu.safe_power_off()
 psu.close()
-print("\033[32mTest03 (4V) completed successfully!\033[0m")
+print_pass("Test03 (4V) completed successfully!")

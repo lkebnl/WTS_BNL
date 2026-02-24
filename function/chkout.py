@@ -992,7 +992,7 @@ def FEMB_CHKOUT_Input(SN = '4', rootdir = 'D:/Warm_Integrated_Board/Report/'):
     env = 'RT'
     note = 'for WIB QC' #input("A short note (<80 letters):")
     ToyTPC = '0pF'
-    save_dir = rootdir + "FEMB{}_{}_{}/".format(femb_sn, env, ToyTPC)
+    save_dir = os.path.join(rootdir, "FEMB{}_{}_{}/".format(femb_sn, env, ToyTPC))
     if (os.path.exists(save_dir)):
         print("Folder exist, please check the entering infomation...")
         exit_en = "n"

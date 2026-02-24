@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from function.cls_udp import CLS_UDP
 from function.tcp_cfg import TCP_CFG
 from function.raw_convertor import RAW_CONV
+from function.report_path import get_report_path, init_report_session
 import datetime
 import file.report_dict as rp_dict
 import GUI.pop_window as pop
@@ -264,6 +265,11 @@ def retry_prompt(test_name):
 
 psu = rigol.RigolDP800()
 psu.safe_power_off()
+
+# Initialize report session with WIB_ID (default: qc_debug)
+wib_id = rp_dict.wib_info.get('WIB_ID', 'qc_debug') if hasattr(rp_dict, 'wib_info') else 'qc_debug'
+init_report_session(wib_id)
+
 print_header("Test02: Calibration Path Control - Power On")
 print("Turn FM on")
 psu.set_channel(1, 12.0, 3.0, on=True)
@@ -774,15 +780,9 @@ if rp_dict.csv_manager:
 
 psu.safe_power_off()
 
-import os
-
-# === Setup relative path to ../file/Calibration_report_02.html ===
-base_dir = os.path.dirname(os.path.abspath(__file__))
-target_file_path = os.path.join(base_dir, "..", "report", "WIB_02_Calibration_report_02.html")
-print(target_file_path)
-
-# Ensure target directory exists
-os.makedirs(os.path.dirname(target_file_path), exist_ok=True)
+# === Setup report path using centralized report_path module ===
+target_file_path = get_report_path("Test02_Calibration_report.html")
+print(f"Report path: {target_file_path}")
 
 # Collect values
 cal = rp_dict.log05_Cal

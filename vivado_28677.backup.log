@@ -2,13 +2,13 @@
 # Vivado v2022.2 (64-bit)
 # SW Build 3671981 on Fri Oct 14 04:59:54 MDT 2022
 # IP Build 3669848 on Fri Oct 14 08:30:02 MDT 2022
-# Start of session at: Tue Feb 17 17:07:54 2026
-# Process ID: 598611
+# Start of session at: Tue Feb 24 14:59:42 2026
+# Process ID: 28677
 # Current directory: /home/dune/Documents/DUNE_WIB_QC_Script
 # Command line: vivado -mode batch -source file/tcl_02.tcl
 # Log file: /home/dune/Documents/DUNE_WIB_QC_Script/vivado.log
 # Journal file: /home/dune/Documents/DUNE_WIB_QC_Script/vivado.jou
-# Running On: dune-MS-7A58, OS: Linux, CPU Frequency: 4200.392 MHz, CPU Physical cores: 4, Host memory: 67301 MB
+# Running On: dune-MS-7A58, OS: Linux, CPU Frequency: 4200.227 MHz, CPU Physical cores: 4, Host memory: 67300 MB
 #-----------------------------------------------------------
 source file/tcl_02.tcl
 # open_hw_manager
@@ -83,28 +83,28 @@ IBERT RX Channel BER Report:
 #     puts "--------------------------------------"
 # }
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_BER: 9.7662926804960648e-14
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_BER: 9.7732274872257574e-14
  localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_ERROR_count: 000000000000
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_BIT_count: 10239299934120
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_BIT_count: 10232034415520
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_BER: 9.7655691500615356e-14
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_BER: 9.7726618606784469e-14
  localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_ERROR_count: 000000000000
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_BIT_count: 10240058563240
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_BIT_count: 10232626629840
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_BER: 0.57499994996892667
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_ERROR_count: 055A13A0E350
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_BIT_count: 10233800032320
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_BER: 0.57499996725130031
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_ERROR_count: 0559547F051D
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_BIT_count: 10228222910800
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_BER: 0.57500000009429642
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_ERROR_count: 055FBD90E976
- localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_BIT_count: 10276105081400
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_BER: 0.57500000001382601
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_ERROR_count: 055EFDA9D5EF
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_BIT_count: 10270505792280
 --------------------------------------
 # Close the connection
 invalid command name "Close"
     while executing
 "Close the connection"
     (file "file/tcl_02.tcl" line 52)
-INFO: [Common 17-206] Exiting Vivado at Tue Feb 17 17:08:09 2026...
+INFO: [Common 17-206] Exiting Vivado at Tue Feb 24 14:59:57 2026...

@@ -124,6 +124,10 @@
         .status-fail {
             color: #991b1b;
         }
+        .status-info {
+            color: #6b7280;
+            font-style: italic;
+        }
         .error-cell {
             background: #fee2e2 !important;
             color: #991b1b !important;
@@ -172,18 +176,18 @@
         <div class="header">
             <h1>DUNE WIB Quality Control</h1>
             <div class="subtitle">FEMB Power Rail Test Report (Test03 - 2V)</div>
-            <div class="status-badge fail">Overall Status: FAIL</div>
+            <div class="status-badge pass">Overall Status: PASS</div>
         </div>
 
         <!-- Test Information -->
         <div class="info-section">
             <div class="info-row">
                 <div class="info-label">Test Date:</div>
-                <div class="info-value">2026-02-17 16:37:48 UTC</div>
+                <div class="info-value">2026-02-20 11:50:58 UTC</div>
             </div>
             <div class="info-row">
                 <div class="info-label">Total Test Time:</div>
-                <div class="info-value">77.22 seconds</div>
+                <div class="info-value">75.09 seconds</div>
             </div>
             <div class="info-row">
                 <div class="info-label">Test Configuration:</div>
@@ -206,21 +210,21 @@
                 <tbody>
                     <tr>
                         <td><strong>Channel 1</strong></td>
-                        <td>11.990 V</td>
-                        <td>0.766 A</td>
-                        <td>9.184 W</td>
+                        <td>12.000 V</td>
+                        <td>0.891 A</td>
+                        <td>10.692 W</td>
                     </tr>
                     <tr>
                         <td><strong>Channel 2</strong></td>
                         <td>12.010 V</td>
-                        <td>0.752 A</td>
-                        <td>9.032 W</td>
+                        <td>0.574 A</td>
+                        <td>6.894 W</td>
                     </tr>
                     <tr style="background-color: #f3f4f6; font-weight: bold;">
                         <td><strong>TOTAL</strong></td>
                         <td></td>
                         <td></td>
-                        <td>18.216 W</td>
+                        <td>17.586 W</td>
                     </tr>
                 </tbody>
             </table>
@@ -246,41 +250,41 @@
                     <tr>
                         <td class="rail-label"><strong>FE</strong> (LArASIC)</td>
                         <td>2.00</td>
-                        <td>1.962</td>
-                        <td>0.422</td>
-                        <td>0.828</td>
+                        <td>1.966</td>
+                        <td>0.423</td>
+                        <td>0.832</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>ADC</strong> (ColdADC)</td>
                         <td>2.00</td>
-                        <td>1.941</td>
-                        <td>1.363</td>
-                        <td>2.646</td>
+                        <td>1.945</td>
+                        <td>1.351</td>
+                        <td>2.629</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>CD</strong> (COLDATA)</td>
                         <td>2.00</td>
-                        <td>2.003</td>
-                        <td>0.164</td>
-                        <td>0.328</td>
+                        <td>2.005</td>
+                        <td>0.165</td>
+                        <td>0.330</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>IDLE</strong> (IDLE)</td>
                         <td>2.00</td>
-                        <td>2.020</td>
-                        <td class="error-cell">1.085</td>
-                        <td>2.192</td>
-                        <td class="status-cell status-fail">FAIL</td>
+                        <td>2.022</td>
+                        <td>1.059</td>
+                        <td>2.142</td>
+                        <td class="status-cell status-info">INFO</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>BIAS</strong> (BIAS)</td>
                         <td>5.00</td>
-                        <td>5.000</td>
+                        <td>4.973</td>
                         <td>0.027</td>
-                        <td>0.136</td>
+                        <td>0.134</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                 </tbody>
@@ -306,34 +310,34 @@
                     <tr>
                         <td class="rail-label"><strong>FE</strong> (LArASIC)</td>
                         <td>2.00</td>
-                        <td>1.964</td>
-                        <td>0.423</td>
-                        <td>0.832</td>
+                        <td>1.968</td>
+                        <td>0.425</td>
+                        <td>0.836</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>ADC</strong> (ColdADC)</td>
                         <td>2.00</td>
-                        <td>1.950</td>
-                        <td>1.351</td>
-                        <td>2.635</td>
+                        <td>1.954</td>
+                        <td>1.342</td>
+                        <td>2.622</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>CD</strong> (COLDATA)</td>
                         <td>2.00</td>
-                        <td>2.002</td>
+                        <td>2.004</td>
                         <td>0.164</td>
-                        <td>0.328</td>
+                        <td>0.329</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>IDLE</strong> (IDLE)</td>
                         <td>2.00</td>
-                        <td>2.014</td>
-                        <td class="error-cell">0.989</td>
-                        <td>1.993</td>
-                        <td class="status-cell status-fail">FAIL</td>
+                        <td>2.016</td>
+                        <td>0.969</td>
+                        <td>1.953</td>
+                        <td class="status-cell status-info">INFO</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>BIAS</strong> (BIAS)</td>
@@ -366,41 +370,41 @@
                     <tr>
                         <td class="rail-label"><strong>FE</strong> (LArASIC)</td>
                         <td>2.00</td>
-                        <td>1.941</td>
-                        <td>0.421</td>
-                        <td>0.817</td>
+                        <td>1.944</td>
+                        <td>0.423</td>
+                        <td>0.822</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>ADC</strong> (ColdADC)</td>
                         <td>2.00</td>
-                        <td>1.956</td>
-                        <td>1.355</td>
-                        <td>2.652</td>
+                        <td>1.960</td>
+                        <td>1.349</td>
+                        <td>2.645</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>CD</strong> (COLDATA)</td>
                         <td>2.00</td>
-                        <td>2.003</td>
-                        <td>0.166</td>
+                        <td>2.005</td>
+                        <td>0.165</td>
                         <td>0.332</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>IDLE</strong> (IDLE)</td>
                         <td>2.00</td>
-                        <td>1.996</td>
-                        <td class="error-cell">1.051</td>
-                        <td>2.098</td>
-                        <td class="status-cell status-fail">FAIL</td>
+                        <td>1.997</td>
+                        <td>1.030</td>
+                        <td>2.056</td>
+                        <td class="status-cell status-info">INFO</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>BIAS</strong> (BIAS)</td>
                         <td>5.00</td>
                         <td>5.000</td>
                         <td>0.028</td>
-                        <td>0.139</td>
+                        <td>0.138</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                 </tbody>
@@ -426,23 +430,23 @@
                     <tr>
                         <td class="rail-label"><strong>FE</strong> (LArASIC)</td>
                         <td>2.00</td>
-                        <td>1.936</td>
-                        <td>0.417</td>
-                        <td>0.808</td>
+                        <td>1.939</td>
+                        <td>0.419</td>
+                        <td>0.813</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>ADC</strong> (ColdADC)</td>
                         <td>2.00</td>
-                        <td>1.930</td>
-                        <td>1.350</td>
-                        <td>2.604</td>
+                        <td>1.932</td>
+                        <td>1.345</td>
+                        <td>2.599</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>CD</strong> (COLDATA)</td>
                         <td>2.00</td>
-                        <td>1.989</td>
+                        <td>1.992</td>
                         <td>0.163</td>
                         <td>0.325</td>
                         <td class="status-cell status-pass">PASS</td>
@@ -450,17 +454,17 @@
                     <tr>
                         <td class="rail-label"><strong>IDLE</strong> (IDLE)</td>
                         <td>2.00</td>
-                        <td>1.987</td>
-                        <td class="error-cell">1.001</td>
-                        <td>1.990</td>
-                        <td class="status-cell status-fail">FAIL</td>
+                        <td>1.988</td>
+                        <td>0.984</td>
+                        <td>1.956</td>
+                        <td class="status-cell status-info">INFO</td>
                     </tr>
                     <tr>
                         <td class="rail-label"><strong>BIAS</strong> (BIAS)</td>
                         <td>5.00</td>
                         <td>5.000</td>
                         <td>0.027</td>
-                        <td>0.137</td>
+                        <td>0.135</td>
                         <td class="status-cell status-pass">PASS</td>
                     </tr>
                 </tbody>
@@ -469,7 +473,7 @@
         <!-- Footer -->
         <div class="footer">
             <p>DUNE WIB Quality Control System - Test03 FEMB Power Rail Test</p>
-            <p>Report generated: 2026-02-17 16:37:48 UTC</p>
+            <p>Report generated: 2026-02-20 11:50:58 UTC</p>
         </div>
     </div>
 </body>

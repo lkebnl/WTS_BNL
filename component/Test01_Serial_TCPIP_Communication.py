@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from function.ping_host import ping_host
+from function.report_path import get_report_path, init_report_session, get_wib_id
 import file.report_dict as rp_dict
 import function.Rigol_DP800 as rigol
 import GUI.send_email as send_email
@@ -291,9 +292,8 @@ def generate_html_report(com_port, adapter_name, test_duration, results):
     """
     Generate HTML report for communication tests.
     """
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    target_file_path = os.path.join(base_dir, "..", "report", "WIB_01_communication_report_01.html")
-    os.makedirs(os.path.dirname(target_file_path), exist_ok=True)
+    # Use centralized report path
+    target_file_path = get_report_path("Test01_Communication_report.html")
 
     uart_status = results['uart']['status']
     tcp_status = results['tcp']['status']
@@ -403,6 +403,10 @@ def main():
     """Main test function."""
     t1 = time.time()
     utc_time = datetime.now(timezone.utc)
+
+    # Initialize report session with WIB_ID (default: qc_debug)
+    wib_id = rp_dict.wib_info.get('WIB_ID', 'qc_debug') if hasattr(rp_dict, 'wib_info') else 'qc_debug'
+    init_report_session(wib_id)
 
     # Print header
     print_header("A_RT01 : Serial_TCPIP_Communication Test")

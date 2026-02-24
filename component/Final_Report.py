@@ -1,155 +1,705 @@
+"""
+Final Report Generator for WIB QC Testing
+
+Generates a comprehensive HTML report and PDF with all test results integrated.
+- Summary page with clickable links to each test
+- Each test report embedded page by page
+"""
+
 import sys
 import os
+import base64
+import re
+from datetime import datetime, timezone
 
-# Add the parent directory to sys.path so 'file' can be imported
+# Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import file.report_dict as rp_dict
-import datetime
-from datetime import datetime, timezone
+from function.report_path import get_report_path, get_report_dir, get_wib_id
 
-def fin_rep(item = 1, status = True):
-    if item == 1:
-        if status:
-            rp_dict.log_fn_rp['item01'] = 'Item_01 Serial_TCP/IP_Communication Pass QC'
-        else:
-            rp_dict.log_fn_rp['item01'] = 'Item_01 Serial_TCP/IP_Communication QC Failed'
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
 
-    if item == 2:
-        if status:
-            rp_dict.log_fn_rp['item02'] = 'Item_02 Calibration Path Control Pass QC'
-        else:
-            rp_dict.log_fn_rp['item02'] = 'Item_02 Calibration Path Control QC Failed'
+def print_header(msg):
+    print("\033[35m" + "=" * 60 + "\033[0m")
+    print("\033[35m" + msg + "\033[0m")
+    print("\033[35m" + "=" * 60 + "\033[0m")
 
-    if item == 31:
-        if status:
-            rp_dict.log_fn_rp['item031'] = 'Item_0301 Power Rail Pass QC'
-        else:
-            rp_dict.log_fn_rp['item031'] = 'Item_0301 Power Rail QC Failed'
+def print_pass(msg):
+    print("\033[32m" + msg + "\033[0m")
 
-    if item == 32:
-        if status:
-            rp_dict.log_fn_rp['item032'] = 'Item_0302 Power Rail Pass QC'
-        else:
-            rp_dict.log_fn_rp['item032'] = 'Item_0302 Power Rail QC Failed'
-    if item == 33:
-        if status:
-            rp_dict.log_fn_rp['item033'] = 'Item_0303 Power Rail Pass QC'
-        else:
-            rp_dict.log_fn_rp['item033'] = 'Item_0303 Power Rail QC Failed'
-    if item == 34:
-        if status:
-            rp_dict.log_fn_rp['item034'] = 'Item_0304 Power Rail Pass QC'
-        else:
-            rp_dict.log_fn_rp['item034'] = 'Item_0304 Power Rail QC Failed'
+def print_fail(msg):
+    print("\033[31m" + msg + "\033[0m")
 
-    if item == 41:
-        if status:
-            rp_dict.log_fn_rp['item041'] = 'Item_041 WIB FEMB Pulse Pass QC'
-        else:
-            rp_dict.log_fn_rp['item041'] = 'Item_041 WIB FEMB Pulse QC Failed'
-    if item == 42:
-        if status:
-            rp_dict.log_fn_rp['item042'] = 'Item_042 WIB FEMB Pulse Pass QC'
-        else:
-            rp_dict.log_fn_rp['item042'] = 'Item_042 WIB FEMB Pulse QC Failed'
-    if item == 43:
-        if status:
-            rp_dict.log_fn_rp['item043'] = 'Item_043 WIB FEMB Pulse Pass QC'
-        else:
-            rp_dict.log_fn_rp['item043'] = 'Item_043 WIB FEMB Pulse QC Failed'
-    if item == 44:
-        if status:
-            rp_dict.log_fn_rp['item044'] = 'Item_044 WIB FEMB Pulse Pass QC'
-        else:
-            rp_dict.log_fn_rp['item044'] = 'Item_044 WIB FEMB Pulse QC Failed'
+def print_info(msg):
+    print("\033[36m" + msg + "\033[0m")
 
-    if item == 51:
-        if status:
-            rp_dict.log_fn_rp['item051'] = 'Item_05 I2C Device Access Pass QC'
+def image_to_base64(image_path):
+    """Convert image file to base64 string for embedding in HTML."""
+    if not os.path.exists(image_path):
+        return None
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode('utf-8')
+    except Exception as e:
+        print(f"Warning: Could not encode image {image_path}: {e}")
+        return None
+
+def get_image_mime_type(image_path):
+    """Get MIME type based on file extension."""
+    ext = os.path.splitext(image_path)[1].lower()
+    mime_types = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml'
+    }
+    return mime_types.get(ext, 'image/png')
+
+# ============================================================
+# TEST REPORT MAPPING
+# ============================================================
+
+# Define test items and their report files
+TEST_ITEMS = [
+    {
+        'id': 'test01',
+        'name': 'Test01: Serial/TCP/IP Communication',
+        'report_file': 'Test01_Communication_report.html',
+        'rp_key': 'item01'
+    },
+    {
+        'id': 'test02',
+        'name': 'Test02: Calibration Path Control',
+        'report_file': 'Test02_Calibration_report.html',
+        'rp_key': 'item02'
+    },
+    {
+        'id': 'test03_1v',
+        'name': 'Test03: Power Rail FEMB 1V',
+        'report_file': 'Test03_1V_power_report.html',
+        'rp_key': 'item031'
+    },
+    {
+        'id': 'test03_2v',
+        'name': 'Test03: Power Rail FEMB 2V',
+        'report_file': 'Test03_2V_power_report.html',
+        'rp_key': 'item032'
+    },
+    {
+        'id': 'test03_3v',
+        'name': 'Test03: Power Rail FEMB 3V',
+        'report_file': 'Test03_3V_power_report.html',
+        'rp_key': 'item033'
+    },
+    {
+        'id': 'test03_4v',
+        'name': 'Test03: Power Rail FEMB 4V',
+        'report_file': 'Test03_4V_power_report.html',
+        'rp_key': 'item034'
+    },
+    {
+        'id': 'test04_slot0',
+        'name': 'Test04: WIB FEMB Pulse Slot 0',
+        'report_file': 'Test0400_FEMB_Slot0_Pulse',  # Directory
+        'rp_key': 'item041',
+        'is_dir': True
+    },
+    {
+        'id': 'test04_slot1',
+        'name': 'Test04: WIB FEMB Pulse Slot 1',
+        'report_file': 'Test0401_FEMB_Slot1_Pulse',
+        'rp_key': 'item042',
+        'is_dir': True
+    },
+    {
+        'id': 'test04_slot2',
+        'name': 'Test04: WIB FEMB Pulse Slot 2',
+        'report_file': 'Test0402_FEMB_Slot2_Pulse',
+        'rp_key': 'item043',
+        'is_dir': True
+    },
+    {
+        'id': 'test04_slot3',
+        'name': 'Test04: WIB FEMB Pulse Slot 3',
+        'report_file': 'Test0403_FEMB_Slot3_Pulse',
+        'rp_key': 'item044',
+        'is_dir': True
+    },
+    {
+        'id': 'test05',
+        'name': 'Test05: I2C Device Search',
+        'report_file': 'Test05_I2C_Device_report.html',
+        'rp_key': 'item051'
+    },
+    {
+        'id': 'test052',
+        'name': 'Test052: I2C Sensor Information',
+        'report_file': 'Test052_I2C_Sensor_Info.html',
+        'rp_key': 'item052'
+    },
+    {
+        'id': 'test06',
+        'name': 'Test06: PTB Interface Path',
+        'report_file': 'Test06_PTB_Interface.html',
+        'rp_key': 'item06'
+    },
+    {
+        'id': 'test07',
+        'name': 'Test07: IBERT',
+        'report_file': 'Test07_IBERT',  # Directory
+        'rp_key': 'item07',
+        'is_dir': True
+    }
+]
+
+# ============================================================
+# REPORT CONTENT EXTRACTION
+# ============================================================
+
+def find_report_html(report_dir, test_item):
+    """Find the HTML report file for a test item."""
+    report_file = test_item.get('report_file', '')
+    is_dir = test_item.get('is_dir', False)
+
+    if is_dir:
+        # For directory-based tests, look for result.html inside
+        base_dir = os.path.join(report_dir, report_file)
+
+        # Check for subdirectories (e.g., FEMB0_RT_0pF)
+        if os.path.exists(base_dir):
+            subdirs = [d for d in os.listdir(base_dir)
+                      if os.path.isdir(os.path.join(base_dir, d))]
+            if subdirs:
+                # Use most recent subdirectory
+                subdir = sorted(subdirs)[-1]
+                result_html = os.path.join(base_dir, subdir, 'result.html')
+                if os.path.exists(result_html):
+                    return result_html
+
+            # Check for result.html directly in base_dir
+            result_html = os.path.join(base_dir, 'result.html')
+            if os.path.exists(result_html):
+                return result_html
+
+            # Check for WIB_07_IBERT_report.html (Test07)
+            ibert_html = os.path.join(base_dir, 'WIB_07_IBERT_report.html')
+            if os.path.exists(ibert_html):
+                return ibert_html
+
+        # Check for legacy incorrectly-named directories
+        for dir_name in os.listdir(report_dir):
+            if dir_name.startswith(report_file) and os.path.isdir(os.path.join(report_dir, dir_name)):
+                legacy_dir = os.path.join(report_dir, dir_name)
+                result_html = os.path.join(legacy_dir, 'result.html')
+                if os.path.exists(result_html):
+                    return result_html
+    else:
+        # Direct HTML file
+        html_path = os.path.join(report_dir, report_file)
+        if os.path.exists(html_path):
+            return html_path
+
+    return None
+
+def extract_body_content(html_path):
+    """Extract the body content from an HTML file and convert images to base64."""
+    if not html_path or not os.path.exists(html_path):
+        return None
+
+    try:
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+
+        # Extract body content
+        body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, re.DOTALL | re.IGNORECASE)
+        if body_match:
+            body_content = body_match.group(1)
         else:
-            rp_dict.log_fn_rp['item051'] = 'Item_05 I2C Device Access QC Failed'
-    if item == 52:
-        if status:
-            rp_dict.log_fn_rp['item052'] = 'Item_05 I2C Device Access Pass QC'
+            # If no body tag, use the whole content
+            body_content = html_content
+
+        # Convert relative image paths to base64
+        html_dir = os.path.dirname(html_path)
+
+        def replace_img_src(match):
+            img_tag = match.group(0)
+            src_match = re.search(r'src=["\']([^"\']+)["\']', img_tag)
+            if src_match:
+                src = src_match.group(1)
+                # Skip if already base64
+                if src.startswith('data:'):
+                    return img_tag
+
+                # Resolve relative path
+                if not os.path.isabs(src):
+                    img_path = os.path.join(html_dir, src)
+                else:
+                    img_path = src
+
+                if os.path.exists(img_path):
+                    img_data = image_to_base64(img_path)
+                    if img_data:
+                        mime_type = get_image_mime_type(img_path)
+                        new_src = f'data:{mime_type};base64,{img_data}'
+                        img_tag = img_tag.replace(src_match.group(0), f'src="{new_src}"')
+            return img_tag
+
+        body_content = re.sub(r'<img[^>]+>', replace_img_src, body_content, flags=re.IGNORECASE)
+
+        return body_content
+    except Exception as e:
+        print(f"Warning: Could not extract content from {html_path}: {e}")
+        return None
+
+def get_test_status(rp_key):
+    """Get test status from rp_dict."""
+    status = rp_dict.log_fn_rp.get(rp_key, 'Not Run')
+    passed = 'Pass' in status
+    return status, passed
+
+# ============================================================
+# HTML GENERATION
+# ============================================================
+
+def generate_html_content(wib_info, report_dir):
+    """Generate comprehensive HTML report with embedded test reports."""
+
+    wib_id = wib_info.get('WIB_ID', 'Unknown')
+    tester = wib_info.get('tester_name', wib_info.get('Tester Name', 'Unknown'))
+    test_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    # Collect test info
+    test_reports = []
+    for item in TEST_ITEMS:
+        status, passed = get_test_status(item['rp_key'])
+        html_path = find_report_html(report_dir, item)
+        body_content = extract_body_content(html_path) if html_path else None
+
+        test_reports.append({
+            'id': item['id'],
+            'name': item['name'],
+            'status': status,
+            'passed': passed,
+            'has_report': body_content is not None,
+            'content': body_content
+        })
+
+    # Count pass/fail
+    total_tests = len(test_reports)
+    passed_tests = sum(1 for r in test_reports if r['passed'])
+    failed_tests = total_tests - passed_tests
+    overall_status = "PASS" if failed_tests == 0 else "FAIL"
+    status_color = "#28a745" if overall_status == "PASS" else "#dc3545"
+
+    # Start HTML
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WIB QC Final Report - {wib_id}</title>
+    <style>
+        @page {{
+            size: A4;
+            margin: 10mm;
+        }}
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #ffffff;
+            color: #000000;
+            padding: 15px;
+            line-height: 1.4;
+            font-size: 10pt;
+        }}
+        .container {{
+            max-width: 100%;
+            margin: 0 auto;
+        }}
+
+        /* Header */
+        .header {{
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }}
+        .header h1 {{
+            font-size: 20pt;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }}
+        .header .subtitle {{
+            font-size: 11pt;
+            color: #666;
+        }}
+
+        /* Status Banner */
+        .status-banner {{
+            text-align: center;
+            padding: 10px;
+            margin: 15px 0;
+            font-size: 14pt;
+            font-weight: bold;
+            border: 3px solid {status_color};
+            background-color: {'#d4edda' if overall_status == 'PASS' else '#f8d7da'};
+            color: {status_color};
+        }}
+
+        /* Info Grid */
+        .info-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }}
+        .info-item {{
+            display: flex;
+        }}
+        .info-label {{
+            font-weight: bold;
+            min-width: 110px;
+        }}
+
+        /* Summary Table */
+        .summary-section {{
+            margin: 20px 0;
+        }}
+        .section-title {{
+            font-size: 13pt;
+            font-weight: bold;
+            padding: 8px 12px;
+            background: #343a40;
+            color: white;
+            margin-bottom: 0;
+        }}
+        .summary-table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+        .summary-table th {{
+            background-color: #495057;
+            color: white;
+            font-weight: bold;
+            text-align: left;
+            padding: 8px 10px;
+            border: 1px solid #000;
+        }}
+        .summary-table td {{
+            padding: 8px 10px;
+            border: 1px solid #dee2e6;
+        }}
+        .summary-table tr:nth-child(even) {{
+            background-color: #f8f9fa;
+        }}
+        .summary-table tr:hover {{
+            background-color: #e9ecef;
+        }}
+        .summary-table a {{
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        .summary-table a:hover {{
+            text-decoration: underline;
+        }}
+
+        /* Status Colors */
+        .status-pass {{
+            color: #28a745;
+            font-weight: bold;
+        }}
+        .status-fail {{
+            color: #dc3545;
+            font-weight: bold;
+        }}
+        .status-na {{
+            color: #6c757d;
+        }}
+
+        /* Test Report Section */
+        .test-report {{
+            page-break-before: always;
+            margin-top: 20px;
+            border: 2px solid #343a40;
+        }}
+        .test-report-header {{
+            background: #343a40;
+            color: white;
+            padding: 10px 15px;
+            font-size: 12pt;
+            font-weight: bold;
+        }}
+        .test-report-header a {{
+            color: white;
+            text-decoration: none;
+        }}
+        .back-to-top {{
+            float: right;
+            font-size: 10pt;
+            font-weight: normal;
+        }}
+        .test-report-content {{
+            padding: 15px;
+            background: #fff;
+        }}
+        .no-report {{
+            padding: 40px;
+            text-align: center;
+            color: #999;
+            font-style: italic;
+        }}
+
+        /* Footer */
+        .footer {{
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #dee2e6;
+            text-align: center;
+            font-size: 9pt;
+            color: #6c757d;
+        }}
+
+        /* Embedded report overrides */
+        .test-report-content .container {{
+            padding: 0;
+        }}
+        .test-report-content .header {{
+            display: none;
+        }}
+        .test-report-content .footer {{
+            display: none;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>DUNE WIB Quality Control Report</h1>
+            <div class="subtitle">Warm Interface Board - Final Test Report</div>
+        </div>
+
+        <!-- Overall Status -->
+        <div class="status-banner" id="top">
+            OVERALL QC STATUS: {overall_status}
+        </div>
+
+        <!-- Board Information -->
+        <div class="info-grid">
+            <div class="info-item"><span class="info-label">WIB ID:</span> {wib_id}</div>
+            <div class="info-item"><span class="info-label">Test Date:</span> {test_date}</div>
+            <div class="info-item"><span class="info-label">Tester:</span> {tester}</div>
+            <div class="info-item"><span class="info-label">Tests Passed:</span> {passed_tests}/{total_tests}</div>
+        </div>
+
+        <!-- Test Summary Table with Clickable Links -->
+        <div class="summary-section">
+            <div class="section-title">Test Results Summary (Click to Jump to Report)</div>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 50%;">Test Item</th>
+                        <th style="width: 30%;">Result</th>
+                        <th style="width: 15%;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>"""
+
+    # Add summary rows with links
+    for idx, report in enumerate(test_reports, 1):
+        status_class = "status-pass" if report['passed'] else "status-fail"
+        status_text = "PASS" if report['passed'] else "FAIL"
+        if 'Not Run' in report['status']:
+            status_class = "status-na"
+            status_text = "N/A"
+
+        # Create link if report exists
+        if report['has_report']:
+            name_cell = f'<a href="#{report["id"]}">{report["name"]}</a>'
         else:
-            rp_dict.log_fn_rp['item052'] = 'Item_05 I2C Device Access QC Failed'
+            name_cell = f'{report["name"]} <span class="status-na">(No Report)</span>'
 
-    if item == 6:
-        if status:
-            rp_dict.log_fn_rp['item06'] = 'Item_06 PTB Interface Pass QC'
+        html += f"""
+                    <tr>
+                        <td>{idx}</td>
+                        <td>{name_cell}</td>
+                        <td>{report['status']}</td>
+                        <td class="{status_class}">{status_text}</td>
+                    </tr>"""
+
+    html += """
+                </tbody>
+            </table>
+        </div>"""
+
+    # Add each test report as a separate page
+    for report in test_reports:
+        if report['has_report'] and report['content']:
+            html += f"""
+
+        <!-- {report['name']} -->
+        <div class="test-report" id="{report['id']}">
+            <div class="test-report-header">
+                {report['name']}
+                <a href="#top" class="back-to-top">[Back to Summary]</a>
+            </div>
+            <div class="test-report-content">
+                {report['content']}
+            </div>
+        </div>"""
         else:
-            rp_dict.log_fn_rp['item06'] = 'Item_06 PTB Interface QC Failed'
+            html += f"""
 
-    if item == 7:
-        if status:
-            rp_dict.log_fn_rp['item07'] = 'Item_07 IBERT Pass QC'
+        <!-- {report['name']} -->
+        <div class="test-report" id="{report['id']}">
+            <div class="test-report-header">
+                {report['name']}
+                <a href="#top" class="back-to-top">[Back to Summary]</a>
+            </div>
+            <div class="no-report">
+                No report available for this test item.
+            </div>
+        </div>"""
+
+    # Footer
+    html += f"""
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>DUNE WIB Quality Control System - Final Report</p>
+            <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>Report Directory: {report_dir}</p>
+        </div>
+    </div>
+</body>
+</html>"""
+
+    return html
+
+# ============================================================
+# PDF GENERATION
+# ============================================================
+
+def generate_pdf(html_path, pdf_path):
+    """Generate PDF from HTML using weasyprint."""
+    try:
+        from weasyprint import HTML
+        print_info(f"  Generating PDF from HTML...")
+        HTML(filename=html_path).write_pdf(pdf_path)
+        print_pass(f"  ✓ PDF saved: {pdf_path}")
+        return True
+    except ImportError:
+        print_fail("  ✗ weasyprint not installed. Install with: pip install weasyprint")
+        return False
+    except Exception as e:
+        print_fail(f"  ✗ PDF generation failed: {e}")
+        return False
+
+# ============================================================
+# MAIN FUNCTION
+# ============================================================
+
+def generate_final_report():
+    """Generate the final comprehensive report."""
+    print_header("Generating Final QC Report")
+
+    # Get WIB info
+    wib_info = {
+        'WIB_ID': rp_dict.wib_info.get('WIB_ID', get_wib_id()),
+        'tester_name': rp_dict.wib_info.get('tester_name', 'Unknown'),
+        'date': datetime.now(timezone.utc)
+    }
+
+    # Get report directory
+    report_dir = get_report_dir()
+    print_info(f"  Report Directory: {report_dir}")
+
+    # List available reports
+    print_info("  Scanning for test reports...")
+    for item in TEST_ITEMS:
+        html_path = find_report_html(report_dir, item)
+        if html_path:
+            print_pass(f"    ✓ {item['name']}")
         else:
-            rp_dict.log_fn_rp['item07'] = 'Item_07 IBERT QC Failed'
+            print_info(f"    - {item['name']} (not found)")
 
-fin_rep(item=1, status=True)
-fin_rep(item=2, status=True)
-fin_rep(item=31, status=True)
-fin_rep(item=32, status=True)
-fin_rep(item=33, status=True)
-fin_rep(item=34, status=True)
-fin_rep(item=41, status=True)
-fin_rep(item=42, status=True)
-fin_rep(item=43, status=True)
-fin_rep(item=44, status=True)
-fin_rep(item=51, status=True)
-fin_rep(item=52, status=True)
-fin_rep(item=6, status=True)
-fin_rep(item=7, status=True)
+    # Generate HTML
+    print_info("  Generating integrated HTML report...")
+    html_content = generate_html_content(wib_info, report_dir)
 
-# === Setup relative path to ../report/final_report.html ===
-base_dir = os.path.dirname(os.path.abspath(__file__))
-target_file_path = os.path.join(base_dir, "..", "report", "final_report.html")
-rp_dict.log01_wib['date01'] = datetime.now(timezone.utc)
-rp_dict.log01_wib['WIB QR ID'] = '1750-1F-000016'
-rp_dict.log01_wib['Tester Name'] = 'lke'
-# Ensure target directory exists
-os.makedirs(os.path.dirname(target_file_path), exist_ok=True)
-# Always create new file (overwrite if exists)
-with open(target_file_path, "w") as f:
-    f.write('<!DOCTYPE html>\n')
-    f.write('<html lang="en">\n')
-    f.write('<head>\n')
-    f.write('    <meta charset="UTF-8">\n')
-    f.write('    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n')
-    f.write('    <title>WIB QC Test Report</title>\n')
-    f.write('    <style>\n')
-    f.write('        body { font-family: Arial, sans-serif; margin: 40px; }\n')
-    f.write('        h2 { color: #333; }\n')
-    f.write('        h4 { color: #555; margin: 10px 0; }\n')
-    f.write('        h3 { margin: 15px 0; }\n')
-    f.write('        a { color: #0066cc; text-decoration: none; }\n')
-    f.write('        a:hover { text-decoration: underline; }\n')
-    f.write('        .pass { color: green; }\n')
-    f.write('        .fail { color: red; }\n')
-    f.write('    </style>\n')
-    f.write('</head>\n')
-    f.write('<body>\n')
-    f.write('    <h2>Warm Interface Board QC Test</h2>\n')
-    f.write('    <h4>WIB QR ID:&nbsp;&nbsp;&nbsp;&nbsp;' + str(rp_dict.log01_wib['WIB QR ID']) + '</h4>\n')
-    f.write('    <h4>Tester Name:&nbsp;&nbsp;&nbsp;&nbsp;' + str(rp_dict.log01_wib['Tester Name']) + '</h4>\n')
-    f.write('    <h4>Date:&nbsp;&nbsp;&nbsp;&nbsp;' + str(rp_dict.log01_wib['date01']) + '</h4>\n')
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item01'], rp_dict.report_paths['item01']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item02'], rp_dict.report_paths['item02']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item031'], rp_dict.report_paths['item031']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item032'], rp_dict.report_paths['item032']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item033'], rp_dict.report_paths['item033']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item034'], rp_dict.report_paths['item034']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item041'], rp_dict.report_paths['item041']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item042'], rp_dict.report_paths['item042']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item043'], rp_dict.report_paths['item043']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item044'], rp_dict.report_paths['item044']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item051'], rp_dict.report_paths['item051']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item052'], rp_dict.report_paths['item052']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item06'], rp_dict.report_paths['item06']))
-    f.write('    <h3>{} <a href="{}">[detail]</a></h3>\n'.format(rp_dict.log_fn_rp['item07'], rp_dict.report_paths['item07']))
-    f.write('</body>\n')
-    f.write('</html>\n')
+    # Save HTML
+    html_path = get_report_path("Final_Report.html")
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+    print_pass(f"  ✓ HTML saved: {html_path}")
 
+    # Generate PDF
+    pdf_path = get_report_path("Final_Report.pdf")
+    pdf_success = generate_pdf(html_path, pdf_path)
 
-print(f"HTML report saved to {target_file_path}")
+    # Summary
+    print_header("Final Report Generated")
+    print_info(f"  WIB ID: {wib_info['WIB_ID']}")
+    print_info(f"\n  HTML Report: {html_path}")
+    if pdf_success:
+        print_info(f"  PDF Report: {pdf_path}")
+
+    return html_path, pdf_path if pdf_success else None
+
+# ============================================================
+# LEGACY SUPPORT
+# ============================================================
+
+def fin_rep(item=1, status=True):
+    """Legacy function to update test status."""
+    status_map = {
+        1: ('item01', 'Serial_TCP/IP_Communication'),
+        2: ('item02', 'Calibration Path Control'),
+        31: ('item031', 'Power Rail 1V'),
+        32: ('item032', 'Power Rail 2V'),
+        33: ('item033', 'Power Rail 3V'),
+        34: ('item034', 'Power Rail 4V'),
+        41: ('item041', 'WIB FEMB Pulse Slot 0'),
+        42: ('item042', 'WIB FEMB Pulse Slot 1'),
+        43: ('item043', 'WIB FEMB Pulse Slot 2'),
+        44: ('item044', 'WIB FEMB Pulse Slot 3'),
+        51: ('item051', 'I2C Device Search'),
+        52: ('item052', 'I2C Sensor Info'),
+        6: ('item06', 'PTB Interface'),
+        7: ('item07', 'IBERT')
+    }
+
+    if item in status_map:
+        key, name = status_map[item]
+        status_text = "Pass QC" if status else "QC Failed"
+        rp_dict.log_fn_rp[key] = f'Item_{item:02d} {name} {status_text}'
+
+# ============================================================
+# MAIN EXECUTION
+# ============================================================
+
+if __name__ == "__main__":
+    # Set default test statuses (for testing)
+    for item in [1, 2, 31, 32, 33, 34, 41, 42, 43, 44, 51, 52, 6, 7]:
+        fin_rep(item=item, status=True)
+
+    # Generate final report
+    html_path, pdf_path = generate_final_report()
+
+    print(f"\nReport generation complete.")
+    print(f"HTML: {html_path}")
+    if pdf_path:
+        print(f"PDF: {pdf_path}")

@@ -6,6 +6,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # from function.rigol_dp832_ps import RIGOL_PS_CTL
 import function.Rigol_DP800 as rigol
+from function.report_path import get_report_path, init_report_session
 import time
 from function.ping_host import ping_host
 from datetime import datetime
@@ -23,6 +24,309 @@ PORT = 23  # Change if necessary (23 for Telnet, 22 for SSH)
 USERNAME = "root"
 PASSWORD = "root"
 INITIAL_COMMAND = "i2cset -y 1 0x70 0xff 0xff"
+
+# ============================================================
+# TROUBLESHOOT HELPER FUNCTIONS
+# ============================================================
+
+def print_header(msg):
+    """Print header with purple color"""
+    print("\033[35m" + "=" * 60 + "\033[0m")
+    print("\033[35m" + msg + "\033[0m")
+    print("\033[35m" + "=" * 60 + "\033[0m")
+
+def print_pass(msg):
+    """Print pass message with green color"""
+    print("\033[32m" + msg + "\033[0m")
+
+def print_fail(msg):
+    """Print fail message with red color"""
+    print("\033[31m" + msg + "\033[0m")
+
+def print_warning(msg):
+    """Print warning message with yellow color"""
+    print("\033[33m" + msg + "\033[0m")
+
+def print_info(msg):
+    """Print info message with cyan color"""
+    print("\033[36m" + msg + "\033[0m")
+
+# ============================================================
+# TROUBLESHOOT MESSAGES
+# ============================================================
+
+TROUBLESHOOT = {
+    "connection_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: WIB CONNECTION FAILED                        │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • WIB not powered on or not fully booted                   │
+│  • Network cable disconnected                               │
+│  • Incorrect IP address (expected 192.168.121.1)            │
+│  • Telnet service not running on WIB                        │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check WIB power LED indicators                          │
+│  2. Verify network cable connection                         │
+│  3. Wait 30 seconds for WIB to fully boot                   │
+│  4. Try: ping 192.168.121.1                                 │
+│  5. Try: telnet 192.168.121.1 23                            │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "psu_voltage_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: POWER SUPPLY VOLTAGE OUT OF RANGE            │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • PSU not properly connected                               │
+│  • PSU output disabled                                      │
+│  • Load exceeds PSU capacity                                │
+│  • Faulty power cable                                       │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check Rigol DP800 front panel for output status         │
+│  2. Verify power cables are securely connected              │
+│  3. Check for shorts on WIB power input                     │
+│  4. Verify PSU voltage/current settings                     │
+│  5. Try power cycling the PSU                               │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "psu_current_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: POWER SUPPLY CURRENT ABNORMAL                │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • WIB not drawing expected current (too low)               │
+│  • Short circuit on WIB (too high)                          │
+│  • WIB not fully initialized                                │
+│  • Component failure on WIB                                 │
+│                                                             │
+│  CAUTION: High current may indicate fault!                  │
+│                                                             │
+│  Actions:                                                   │
+│  1. If current too low: check WIB power connection          │
+│  2. If current too high: power off immediately              │
+│  3. Inspect WIB for visible damage                          │
+│  4. Check for debris or shorts on connectors                │
+│  5. Verify WIB boot status via serial console               │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "i2c_device_missing": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: I2C SENSOR NOT DETECTED                      │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • I2C bus multiplexer not configured correctly             │
+│  • Sensor failure or not populated on board                 │
+│  • I2C bus pull-up resistor issue                           │
+│  • Clock/data line problem                                  │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check I2C multiplexer configuration                     │
+│  2. Verify sensor is soldered on the board                  │
+│  3. Check for cold solder joints near sensor                │
+│  4. Measure I2C bus pull-up voltage (~3.3V)                 │
+│  5. Try running i2cdetect to scan the bus                   │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "sensor_read_fail": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: SENSOR READ FAILED                           │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Sensor not responding to I2C commands                    │
+│  • Invalid register address                                 │
+│  • I2C bus busy or locked                                   │
+│  • Sensor requires initialization first                     │
+│                                                             │
+│  Actions:                                                   │
+│  1. Verify sensor was detected with i2cdetect               │
+│  2. Check sensor initialization sequence                    │
+│  3. Try resetting the I2C bus                               │
+│  4. Verify register addresses in datasheet                  │
+│  5. Check if sensor needs warm-up time                      │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "temperature_out_of_range": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: TEMPERATURE READING OUT OF RANGE             │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Sensor calibration issue                                 │
+│  • Actual overheating condition                             │
+│  • Incorrect conversion formula                             │
+│  • Sensor damage or failure                                 │
+│                                                             │
+│  CAUTION: High temperature may indicate fault!              │
+│                                                             │
+│  Actions:                                                   │
+│  1. If temp very high: check board for hot spots            │
+│  2. Verify adequate cooling/airflow                         │
+│  3. Compare with other temperature sensors                  │
+│  4. Check sensor connections                                │
+│  5. Allow board to cool and retry                           │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "voltage_out_of_range": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: VOLTAGE READING OUT OF RANGE                 │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Power regulator failure                                  │
+│  • Excessive load on rail                                   │
+│  • Input voltage issue                                      │
+│  • Component failure                                        │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check power input voltage                               │
+│  2. Verify regulator output with multimeter                 │
+│  3. Check for shorts on affected rail                       │
+│  4. Inspect regulator components                            │
+│  5. Test with reduced load if possible                      │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "current_out_of_range": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: CURRENT READING OUT OF RANGE                 │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Short circuit on monitored rail                          │
+│  • Component drawing excessive current                      │
+│  • Sense resistor issue                                     │
+│  • ADC calibration error                                    │
+│                                                             │
+│  CAUTION: High current may damage components!               │
+│                                                             │
+│  Actions:                                                   │
+│  1. If current very high: power off immediately             │
+│  2. Check for shorts on the power rail                      │
+│  3. Inspect components on affected rail                     │
+│  4. Verify sense resistor value                             │
+│  5. Compare with power supply current reading               │
+└─────────────────────────────────────────────────────────────┘
+"""
+}
+
+# ============================================================
+# VALIDATION FUNCTIONS
+# ============================================================
+
+def validate_power_supply(v1, c1, v2, c2, result_dict=None):
+    """Validate power supply voltage and current readings"""
+    errors = []
+
+    # Check voltage ranges (11.0V - 13.0V expected for 12V supply)
+    v1_ok = 11.0 <= v1 <= 13.0
+    v2_ok = 11.0 <= v2 <= 13.0
+
+    # Check current ranges (0.5A - 3.0A expected)
+    c1_ok = 0.5 <= c1 <= 3.0
+    c2_ok = 0.5 <= c2 <= 3.0
+
+    if not v1_ok:
+        errors.append(f"Ch1 Voltage {v1:.3f}V out of range (11.0-13.0V)")
+        print_fail(f"  ✗ Ch1 Voltage FAIL: {v1:.3f}V (expected 11.0-13.0V)")
+        print_warning(TROUBLESHOOT["psu_voltage_fail"])
+    else:
+        print_pass(f"  ✓ Ch1 Voltage PASS: {v1:.3f}V")
+
+    if not c1_ok:
+        errors.append(f"Ch1 Current {c1:.3f}A out of range (0.5-3.0A)")
+        print_fail(f"  ✗ Ch1 Current FAIL: {c1:.3f}A (expected 0.5-3.0A)")
+        print_warning(TROUBLESHOOT["psu_current_fail"])
+    else:
+        print_pass(f"  ✓ Ch1 Current PASS: {c1:.3f}A")
+
+    if not v2_ok:
+        errors.append(f"Ch2 Voltage {v2:.3f}V out of range (11.0-13.0V)")
+        print_fail(f"  ✗ Ch2 Voltage FAIL: {v2:.3f}V (expected 11.0-13.0V)")
+        print_warning(TROUBLESHOOT["psu_voltage_fail"])
+    else:
+        print_pass(f"  ✓ Ch2 Voltage PASS: {v2:.3f}V")
+
+    if not c2_ok:
+        errors.append(f"Ch2 Current {c2:.3f}A out of range (0.5-3.0A)")
+        print_fail(f"  ✗ Ch2 Current FAIL: {c2:.3f}A (expected 0.5-3.0A)")
+        print_warning(TROUBLESHOOT["psu_current_fail"])
+    else:
+        print_pass(f"  ✓ Ch2 Current PASS: {c2:.3f}A")
+
+    if result_dict is not None and errors:
+        if "error_log" not in result_dict:
+            result_dict["error_log"] = []
+        result_dict["error_log"].extend(errors)
+
+    return len(errors) == 0
+
+def validate_i2c_device(readback, device, address, result_dict=None):
+    """Validate I2C device detection"""
+    if address.lower() in readback.lower():
+        print_pass(f"    ✓ I2C Sensor {device} found at 0x{address}")
+        return True
+    else:
+        print_fail(f"    ✗ I2C Sensor {device} NOT FOUND at 0x{address}")
+        if result_dict is not None:
+            if "error_log" not in result_dict:
+                result_dict["error_log"] = []
+            result_dict["error_log"].append(f"I2C sensor {device} not detected at 0x{address}")
+        return False
+
+def validate_temperature(value, sensor_name, min_temp=-10, max_temp=85, result_dict=None):
+    """Validate temperature reading is within expected range"""
+    if value is None:
+        print_fail(f"    ✗ {sensor_name}: Read FAILED (None)")
+        return False
+
+    if min_temp <= value <= max_temp:
+        print_pass(f"    ✓ {sensor_name}: {value:.2f}°C")
+        return True
+    else:
+        print_warning(f"    ⚠ {sensor_name}: {value:.2f}°C (outside {min_temp}-{max_temp}°C range)")
+        if result_dict is not None:
+            if "error_log" not in result_dict:
+                result_dict["error_log"] = []
+            result_dict["error_log"].append(f"{sensor_name} temperature {value:.2f}°C out of range")
+        return False
+
+def validate_voltage(value, sensor_name, nominal, tolerance_pct=10, result_dict=None):
+    """Validate voltage reading is within tolerance of nominal"""
+    if value is None:
+        print_fail(f"    ✗ {sensor_name}: Read FAILED (None)")
+        return False
+
+    min_v = nominal * (1 - tolerance_pct/100)
+    max_v = nominal * (1 + tolerance_pct/100)
+
+    if min_v <= value <= max_v:
+        print_pass(f"    ✓ {sensor_name}: {value:.3f}V (nominal {nominal}V)")
+        return True
+    else:
+        print_warning(f"    ⚠ {sensor_name}: {value:.3f}V (expected {nominal}V ±{tolerance_pct}%)")
+        if result_dict is not None:
+            if "error_log" not in result_dict:
+                result_dict["error_log"] = []
+            result_dict["error_log"].append(f"{sensor_name} voltage {value:.3f}V outside tolerance")
+        return False
+
+def validate_connection(connection, result_dict=None):
+    """Validate WIB connection"""
+    if connection is None:
+        print_fail("  ✗ WIB Connection FAILED")
+        print_warning(TROUBLESHOOT["connection_fail"])
+        if result_dict is not None:
+            if "error_log" not in result_dict:
+                result_dict["error_log"] = []
+            result_dict["error_log"].append("Failed to connect to WIB via Telnet")
+        return False
+    else:
+        print_pass("  ✓ WIB Connection ESTABLISHED")
+        return True
+
+def show_sensor_troubleshoot(issue_type="sensor_read_fail"):
+    """Display sensor troubleshooting message"""
+    if issue_type in TROUBLESHOOT:
+        print_warning(TROUBLESHOOT[issue_type])
 
 
 def receive_response(sock):
@@ -110,7 +414,16 @@ def parse_ltc2499_output(temp_result):
             return [int(x, 16) for x in hex_parts]
     raise ValueError("No hex output found.")
 
-print("\033[35m" + "A_RT05_02 : I2C Sensor Information" + "\033[0m")
+print_header("A_RT05_02 : I2C Sensor Information")
+
+# Result dictionary for error logging
+result_dict = {"error_log": []}
+
+# Tracking counters
+sensors_read = 0
+sensors_failed = 0
+sensor_failures = []
+
 t1 = time.time()
 
 time.sleep(2)
@@ -119,16 +432,21 @@ udp = CLS_UDP()
 conv = RAW_CONV()
 now = datetime.now()
 
-print("\033[35m" + "A_RT03_01 : Power Rail" + "\033[0m")
+print_header("Power Rail Initialization")
 t1 = time.time()
 psu = rigol.RigolDP800()
 
+print_info("  Initializing Power Supply...")
 psu.set_channel(1, 12.0, 3.0, on=True)
 psu.set_channel(2, 12.0, 3.0, on=True)
 time.sleep(10)
 v1, c1 = psu.measure(1)
 v2, c2 = psu.measure(2)  # FIXED: was psu.measure(1)
-print(f"WIB Power - Ch1: {v1:.3f}V {c1:.3f}A, Ch2: {v2:.3f}V {c2:.3f}A")
+print_info(f"  WIB Power - Ch1: {v1:.3f}V {c1:.3f}A, Ch2: {v2:.3f}V {c2:.3f}A")
+
+# Validate power supply
+print_info("\n  Validating Power Supply...")
+psu_ok = validate_power_supply(v1, c1, v2, c2, result_dict)
 
 # Update CSV with WIB power measurements
 if rp_dict.csv_manager:
@@ -146,76 +464,113 @@ if rp_dict.csv_manager:
 
 time.sleep(1)
 
+print_info("\n  Waiting for WIB boot (30 seconds)...")
 time.sleep(30) # wait for boot
-print(c1)
-print(c2)
+print_info("  Pinging WIB...")
 ping_host(ip_address="192.168.121.1", count=4)
 ping_host(ip_address="192.168.121.2", count=4)
 time.sleep(1)
 import component.temp as initial
 initial
 time.sleep(1)
-# if __name__ == "__main__":
 
+# Connect to WIB
+print_info("\n  Connecting to WIB via Telnet...")
 connection = connect_to_server()
-if connection:
-    pass
-    # Send initial command
+
+# Validate connection
+if not validate_connection(connection, result_dict):
+    print_fail("  Cannot proceed with I2C sensor reading - connection failed")
+    psu.safe_power_off()
+    psu.close()
+    exit(1)
+
+# Initialize I2C bus
+print_header("I2C Sensor Reading")
 tcp.tcp_poke(1, 0x00)
 send_command(connection, INITIAL_COMMAND)
 readback = send_command(connection, 'i2cdetect -r -y 0')
-print(readback)
 time.sleep(0.1)
 tcp.tcp_poke(1, 0x01)
 time.sleep(0.1)
 tcp.tcp_poke(1, 0x05)
 time.sleep(0.1)
 readback = send_command(connection, 'i2cdetect -r -y 1')
-print(readback)
-Device = 'LTC2499';    Address = '15'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
-else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
 
+# --- LTC2499 Temperature Sensor ---
+print_info("\n  [LTC2499] Reading Temperature Sensors...")
+Device = 'LTC2499';    Address = '15'
+if validate_i2c_device(readback, Device, Address, result_dict):
+    pass
+else:
+    sensor_failures.append(f'{Device} at 0x{Address}')
+    show_sensor_troubleshoot("i2c_device_missing")
+
+# Read BRD0 Temperature
 send_command(connection, 'i2cset -y 0 0x15 0xB0 0x80')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
-print('temp_result')
 try:
-    print(temp_result.splitlines()[1])
     raw_bytes = parse_ltc2499_output(temp_result)
-    rp_dict.log04_wib['LTC2499_BRD0_Temperature'] = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    rp_dict.log04_wib['LTC2499_BRD0_Temperature'] = temp_val
+    sensors_read += 1
+    validate_temperature(temp_val, 'LTC2499_BRD0_Temperature', result_dict=result_dict)
 except (ValueError, IndexError) as e:
-    print(f'\033[33mWarning: Error reading LTC2499_BRD0_Temperature: {e}\033[0m')
+    print_fail(f'    ✗ LTC2499_BRD0_Temperature: Read FAILED ({e})')
     rp_dict.log04_wib['LTC2499_BRD0_Temperature'] = None
+    sensors_failed += 1
+    sensor_failures.append('LTC2499_BRD0_Temperature')
+
+# Read BRD1 Temperature
 send_command(connection, 'i2cset -y 0 0x15 0xB1 0x80')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    rp_dict.log04_wib['LTC2499_BRD1_Temperature'] = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    rp_dict.log04_wib['LTC2499_BRD1_Temperature'] = temp_val
+    sensors_read += 1
+    validate_temperature(temp_val, 'LTC2499_BRD1_Temperature', result_dict=result_dict)
 except (ValueError, IndexError) as e:
-    print(f'\033[33mWarning: Error reading LTC2499_BRD1_Temperature: {e}\033[0m')
+    print_fail(f'    ✗ LTC2499_BRD1_Temperature: Read FAILED ({e})')
     rp_dict.log04_wib['LTC2499_BRD1_Temperature'] = None
+    sensors_failed += 1
+    sensor_failures.append('LTC2499_BRD1_Temperature')
+
+# Read BRD2 Temperature
 send_command(connection, 'i2cset -y 0 0x15 0xB2 0x80')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    rp_dict.log04_wib['LTC2499_BRD2_Temperature'] = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    rp_dict.log04_wib['LTC2499_BRD2_Temperature'] = temp_val
+    sensors_read += 1
+    validate_temperature(temp_val, 'LTC2499_BRD2_Temperature', result_dict=result_dict)
 except (ValueError, IndexError) as e:
-    print(f'\033[33mWarning: Error reading LTC2499_BRD2_Temperature: {e}\033[0m')
+    print_fail(f'    ✗ LTC2499_BRD2_Temperature: Read FAILED ({e})')
     rp_dict.log04_wib['LTC2499_BRD2_Temperature'] = None
+    sensors_failed += 1
+    sensor_failures.append('LTC2499_BRD2_Temperature')
+
+# Read BRD3 Temperature
 send_command(connection, 'i2cset -y 0 0x15 0xB3 0x80')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    rp_dict.log04_wib['LTC2499_BRD3_Temperature'] = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    rp_dict.log04_wib['LTC2499_BRD3_Temperature'] = temp_val
+    sensors_read += 1
+    validate_temperature(temp_val, 'LTC2499_BRD3_Temperature', result_dict=result_dict)
 except (ValueError, IndexError) as e:
-    print(f'\033[33mWarning: Error reading LTC2499_BRD3_Temperature: {e}\033[0m')
+    print_fail(f'    ✗ LTC2499_BRD3_Temperature: Read FAILED ({e})')
     rp_dict.log04_wib['LTC2499_BRD3_Temperature'] = None
+    sensors_failed += 1
+    sensor_failures.append('LTC2499_BRD3_Temperature')
+
+# Read WIB1 Temperature
 send_command(connection, 'i2ctransfer -y 0 w2@0x15 0xB5 0x80')
 time.sleep(0.2)
 send_command(connection, 'i2ctransfer -y 0 r4@0x15')
@@ -223,21 +578,33 @@ send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    rp_dict.log04_wib['LTC2499_WIB1_Temperature'] = (0.598 - 0.487) / 0.002 + 27
-    # rp_dict.log04_wib['LTC2499_WIB1_Temperature'] = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - 0.487) / 0.002 + 27
+    rp_dict.log04_wib['LTC2499_WIB1_Temperature'] = temp_val
+    sensors_read += 1
+    validate_temperature(temp_val, 'LTC2499_WIB1_Temperature', result_dict=result_dict)
 except (ValueError, IndexError) as e:
-    print(f'\033[33mWarning: Error reading LTC2499_WIB1_Temperature: {e}\033[0m')
+    print_fail(f'    ✗ LTC2499_WIB1_Temperature: Read FAILED ({e})')
     rp_dict.log04_wib['LTC2499_WIB1_Temperature'] = None
+    sensors_failed += 1
+    sensor_failures.append('LTC2499_WIB1_Temperature')
+
+# Read WIB2 Temperature
 send_command(connection, 'i2cset -y 0 0x15 0xB5 0x80')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    rp_dict.log04_wib['LTC2499_WIB2_Temperature'] = (0.598 - 0.483) / 0.002 + 27
-    # rp_dict.log04_wib['LTC2499_WIB2_Temperature'] = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - 0.483) / 0.002 + 27
+    rp_dict.log04_wib['LTC2499_WIB2_Temperature'] = temp_val
+    sensors_read += 1
+    validate_temperature(temp_val, 'LTC2499_WIB2_Temperature', result_dict=result_dict)
 except (ValueError, IndexError) as e:
-    print(f'\033[33mWarning: Error reading LTC2499_WIB2_Temperature: {e}\033[0m')
+    print_fail(f'    ✗ LTC2499_WIB2_Temperature: Read FAILED ({e})')
     rp_dict.log04_wib['LTC2499_WIB2_Temperature'] = None
+    sensors_failed += 1
+    sensor_failures.append('LTC2499_WIB2_Temperature')
+
+# Read WIB3 Temperature
 send_command(connection, 'i2ctransfer -y 0 w2@0x15 0xB6 0x80')
 time.sleep(0.2)
 send_command(connection, 'i2ctransfer -y 0 r4@0x15')
@@ -245,22 +612,26 @@ send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    rp_dict.log04_wib['LTC2499_WIB3_Temperature'] = (0.598 - 0.497) / 0.002 + 27
-    # rp_dict.log04_wib['LTC2499_WIB3_Temperature'] = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - 0.497) / 0.002 + 27
+    rp_dict.log04_wib['LTC2499_WIB3_Temperature'] = temp_val
+    sensors_read += 1
+    validate_temperature(temp_val, 'LTC2499_WIB3_Temperature', result_dict=result_dict)
 except (ValueError, IndexError) as e:
-    print(f'\033[33mWarning: Error reading LTC2499_WIB3_Temperature: {e}\033[0m')
+    print_fail(f'    ✗ LTC2499_WIB3_Temperature: Read FAILED ({e})')
     rp_dict.log04_wib['LTC2499_WIB3_Temperature'] = None
-#########
-# Send initial command
+    sensors_failed += 1
+    sensor_failures.append('LTC2499_WIB3_Temperature')
+# --- INA226 Power Monitor ---
+print_info("\n  [INA226] Reading Power Monitor...")
 tcp.tcp_poke(1, 0x05)
 time.sleep(0.1)
 readback = send_command(connection, 'i2cdetect -r -y 1')
-print(readback)
-Device = 'LTC2499';    Address = '46'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
+Device = 'INA226';    Address = '46'
+if validate_i2c_device(readback, Device, Address, result_dict):
+    pass
 else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
+    sensor_failures.append(f'{Device} at 0x{Address}')
+    show_sensor_troubleshoot("i2c_device_missing")
 send_command(connection, 'i2cset -y 0 0x46 0x05 0x0a 0x00')
 send_command(connection, 'i2cset -y 0 0x46 0x02')
 time.sleep(0.2)
@@ -297,18 +668,17 @@ try:
 except (ValueError, IndexError) as e:
     print(f'\033[33mWarning: Error parsing INA226 Current: {e}\033[0m')
     rp_dict.log04_wib['INA226_Current'] = None
-#######################
-# Send initial command
+# --- AD7414 Temperature Sensors ---
+print_info("\n  [AD7414] Reading Temperature Sensors...")
 tcp.tcp_poke(1, 0x05)
 tcp.tcp_poke(1, 0x05)
 time.sleep(0.5)
 readback = send_command(connection, 'i2cdetect -r -y 1')
-print(readback)
 Device = 'AD7414_0x4A';    Address = '4a'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
+if validate_i2c_device(readback, Device, Address, result_dict):
+    pass
 else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
+    sensor_failures.append(f'{Device} at 0x{Address}')
 send_command(connection, 'i2cset -y 0 0x4a 0x00')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r2@0x4a')
@@ -331,10 +701,10 @@ except (ValueError, IndexError) as e:
     print(f'\033[33mWarning: Error parsing AD7414_0x4A temperature: {e}\033[0m')
     rp_dict.log04_wib['AD7414_0x4A_temperature'] = None
 Device = 'AD7414_0x49';    Address = '49'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
+if validate_i2c_device(readback, Device, Address, result_dict):
+    pass
 else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
+    sensor_failures.append(f'{Device} at 0x{Address}')
 send_command(connection, 'i2cset -y 0 0x49 0x00')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r2@0x49')
@@ -355,10 +725,10 @@ except (ValueError, IndexError) as e:
     print(f'\033[33mWarning: Error parsing AD7414_0x49 temperature: {e}\033[0m')
     rp_dict.log04_wib['AD7414_0x49_temperature'] = None
 Device = 'AD7414_0x4D';    Address = '4d'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
+if validate_i2c_device(readback, Device, Address, result_dict):
+    pass
 else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
+    sensor_failures.append(f'{Device} at 0x{Address}')
 send_command(connection, 'i2cset -y 0 0x4d 0x00')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r2@0x4d')
@@ -378,12 +748,13 @@ try:
 except (ValueError, IndexError) as e:
     print(f'\033[33mWarning: Error parsing AD7414_0x4D temperature: {e}\033[0m')
     rp_dict.log04_wib['AD7414_0x4D_temperature'] = None
-###
+# --- LTC2991 Monitor (0x48) ---
+print_info("\n  [LTC2991_0x48] Reading Monitor...")
 Device = 'LTC2991_0x48';    Address = '48'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
+if validate_i2c_device(readback, Device, Address, result_dict):
+    pass
 else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
+    sensor_failures.append(f'{Device} at 0x{Address}')
 send_command(connection, 'i2cset -y 0 0x48 0x01 0x18')
 send_command(connection, 'i2cset -y 0 0x48 0x01 0x18')
 send_command(connection, 'sleep 0.05')
@@ -467,12 +838,13 @@ msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 vcc = ((raw & 0x3fff)) * 0.00030518
 rp_dict.log04_wib['LTC2991_0x48_VCC'] = vcc + 2.5
-###
+# --- LTC2990 Monitor (0x4C) ---
+print_info("\n  [LTC2990_0x4C] Reading Monitor...")
 Device = 'LTC2990_0x4C';    Address = '4c'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
+if validate_i2c_device(readback, Device, Address, result_dict):
+    pass
 else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
+    sensor_failures.append(f'{Device} at 0x{Address}')
 send_command(connection, 'i2cset -y 0 0x4c 0x01 0x1F')
 send_command(connection, 'i2cset -y 0 0x4c 0x02 0xFF')
 send_command(connection, 'sleep 0.05')
@@ -514,12 +886,13 @@ msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 current_6 = ((((raw & 0x3fff)) * 0.000019075) / 0.1)
 rp_dict.log04_wib['LTC2990_0x4c_V3.3_c'] = current_6
-###
+# --- LTC2990 Monitor (0x4E) ---
+print_info("\n  [LTC2990_0x4E] Reading Monitor...")
 Device = 'LTC2990_0x4e';    Address = '4e'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
+if validate_i2c_device(readback, Device, Address, result_dict):
+    pass
 else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
+    sensor_failures.append(f'{Device} at 0x{Address}')
 send_command(connection, 'i2cset -y 0 0x4e 0x01 0x1F')
 send_command(connection, 'i2cset -y 0 0x4e 0x02 0xFF')
 send_command(connection, 'sleep 0.05')
@@ -619,19 +992,40 @@ test_duration = round(t2 - t1, 2)
 if rp_dict.csv_manager:
     rp_dict.csv_manager.update_item("T052_99", test_duration, status="COMPLETE")
 
+# === Test Summary ===
+print_header("Test052 Summary")
+print_info(f"  Sensors Read Successfully: {sensors_read}")
+print_info(f"  Sensors Failed: {sensors_failed}")
+print_info(f"  Test Duration: {test_duration} seconds")
+
+if sensor_failures:
+    print_fail(f"\n  Failed Sensors/Devices ({len(sensor_failures)}):")
+    for fail in sensor_failures:
+        print_fail(f"    - {fail}")
+    show_sensor_troubleshoot("sensor_read_fail")
+    print_fail("\n  Overall Status: FAIL")
+else:
+    print_pass("\n  All sensors read successfully!")
+    print_pass("  Overall Status: PASS")
+
+# Log errors if any
+if result_dict.get("error_log"):
+    print_warning(f"\n  Total errors logged: {len(result_dict['error_log'])}")
+
+# Close connection
+if connection:
+    connection.close()
+    print_info("  WIB connection closed.")
+
 time.sleep(0.5)
 psu.safe_power_off()
 psu.close()
 
 import os
 
-# === Setup relative path to ../report/wib_power_report_052.html ===
-base_dir = os.path.dirname(os.path.abspath(__file__))
-target_file_path = os.path.join(base_dir, "..", "report", "WIB_052_I2C_Sensor_Info.html")
-print(target_file_path)
-
-# Ensure target directory exists
-os.makedirs(os.path.dirname(target_file_path), exist_ok=True)
+# === Setup report path using centralized report_path module ===
+target_file_path = get_report_path("Test052_I2C_Sensor_Info.html")
+print(f"Report path: {target_file_path}")
 
 # Organize measurements by category
 categories = {

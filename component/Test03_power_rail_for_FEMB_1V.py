@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # from function.rigol_dp832_ps import RIGOL_PS_CTL
 import function.Rigol_DP800 as rigol
 from function.csv_manager import WIB_QC_CSV_Manager
-
+from function.report_path import get_report_path, init_report_session
 from function.ping_host import ping_host
 from datetime import datetime
 from function.cls_udp import CLS_UDP
@@ -16,12 +16,209 @@ from function.raw_convertor import RAW_CONV
 import time
 import file.report_dict as rp_dict
 
-print("\n" + "="*60)
-print("\033[35m" + "A_RT03_01 : FEMB Power Rail Test (1V)" + "\033[0m")
-print("="*60)
+# Image paths for instruction popups
+IMG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'GUI', 'output_pngs')
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+def print_header(msg):
+    print("\033[35m" + "=" * 60 + "\033[0m")
+    print("\033[35m" + msg + "\033[0m")
+    print("\033[35m" + "=" * 60 + "\033[0m")
+
+def print_pass(msg):
+    print("\033[32m" + msg + "\033[0m")
+
+def print_fail(msg):
+    print("\033[31m" + msg + "\033[0m")
+
+def print_warning(msg):
+    print("\033[33m" + msg + "\033[0m")
+
+# ============================================================================
+# TROUBLESHOOTING MESSAGES
+# ============================================================================
+TROUBLESHOOT = {
+    "wib_voltage_low": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: WIB VOLTAGE OUT OF RANGE (V < 11.0V)         │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • PSU not properly connected                               │
+│  • PSU channel not enabled                                  │
+│  • Faulty power cable                                       │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check PSU front panel - verify CH1/CH2 are ON           │
+│  2. Verify power cable connections to WIB                   │
+│  3. Check PSU USB/Serial connection                         │
+│  4. Replace power cables if damaged                         │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "wib_voltage_high": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: WIB VOLTAGE OUT OF RANGE (V > 13.0V)         │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • PSU voltage setting incorrect                            │
+│  • PSU malfunction                                          │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check PSU voltage setting (should be 12V)               │
+│  2. Verify PSU calibration                                  │
+│  3. Try different PSU if available                          │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "wib_current_low": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: WIB CURRENT TOO LOW (I < 0.5A)               │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • WIB not powered properly                                 │
+│  • WIB not fully seated in slot                             │
+│  • Faulty WIB board                                         │
+│  • Power connector not fully inserted                       │
+│                                                             │
+│  Actions:                                                   │
+│  1. Power off and reseat WIB board                          │
+│  2. Verify correct power connector orientation              │
+│  3. Inspect power connector pins                            │
+│  4. Check WIB for visible damage                            │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "wib_current_high": """
+┌─────────────────────────────────────────────────────────────┐
+│  ⚠️  WARNING: WIB CURRENT TOO HIGH (I > 3.0A)                │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Short circuit on WIB                                     │
+│  • Component failure on WIB                                 │
+│  • Wrong voltage setting                                    │
+│                                                             │
+│  ⚠️  IMMEDIATELY POWER OFF!                                  │
+│                                                             │
+│  Actions:                                                   │
+│  1. POWER OFF IMMEDIATELY                                   │
+│  2. Inspect WIB for visible damage/burns                    │
+│  3. Check for foreign objects/debris                        │
+│  4. DO NOT retry without inspection                         │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "femb_voltage": """
+┌─────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOT: FEMB VOLTAGE OUT OF TOLERANCE                │
+│  Expected: ±0.15V from set value                            │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • FEMB slot connector issue                                │
+│  • Power regulator failure                                  │
+│  • Damaged trace on WIB board                               │
+│  • FEMB slot not properly configured                        │
+│                                                             │
+│  Actions:                                                   │
+│  1. Check FEMB slot connector for damage                    │
+│  2. Verify TCP communication (run Test01 first)             │
+│  3. Inspect power path to failing slot                      │
+│  4. Test with known-good FEMB if available                  │
+└─────────────────────────────────────────────────────────────┘
+""",
+    "femb_current_high": """
+┌─────────────────────────────────────────────────────────────┐
+│  ⚠️  WARNING: FEMB CURRENT TOO HIGH                          │
+├─────────────────────────────────────────────────────────────┤
+│  Possible Causes:                                           │
+│  • Short circuit on FEMB power rail                         │
+│  • Excessive load on power rail                             │
+│  • Damaged components                                       │
+│                                                             │
+│  Actions:                                                   │
+│  1. Power off the slot immediately                          │
+│  2. Inspect FEMB connector for debris/damage                │
+│  3. Check for solder bridges on connector                   │
+│  4. Do not retry without inspection                         │
+└─────────────────────────────────────────────────────────────┘
+"""
+}
+
+# Rail thresholds for validation
+RAIL_THRESHOLDS = {
+    "FE": {"V_tol": 0.15, "I_min": 0.0, "I_max": 1.5},
+    "CD": {"V_tol": 0.15, "I_min": 0.0, "I_max": 0.5},
+    "ADC": {"V_tol": 0.15, "I_min": 0.0, "I_max": 2.5},
+    "IDLE": {"V_tol": 0.15, "I_min": 0.0, "I_max": 0.3},
+    "BIAS": {"V_tol": 0.15, "I_min": 0.0, "I_max": 0.2}
+}
+
+SLOT_NAMES = ["SLOT0", "SLOT1", "SLOT2", "SLOT3"]
+
+# ============================================================================
+# VALIDATION FUNCTIONS
+# ============================================================================
+def validate_wib_power(voltage, current, channel):
+    """Validate WIB power measurements and show troubleshooting if failed"""
+    v_ok = 11.0 <= voltage <= 13.0
+    c_ok = 0.5 <= current <= 3.0
+
+    if not v_ok:
+        if voltage < 11.0:
+            print_fail(f"  ✗ CH{channel} Voltage FAIL: {voltage:.3f}V (< 11.0V)")
+            print(TROUBLESHOOT["wib_voltage_low"])
+        else:
+            print_fail(f"  ✗ CH{channel} Voltage FAIL: {voltage:.3f}V (> 13.0V)")
+            print(TROUBLESHOOT["wib_voltage_high"])
+    else:
+        print_pass(f"  ✓ CH{channel} Voltage PASS: {voltage:.3f}V")
+
+    if not c_ok:
+        if current < 0.5:
+            print_fail(f"  ✗ CH{channel} Current FAIL: {current:.3f}A (< 0.5A)")
+            print(TROUBLESHOOT["wib_current_low"])
+        else:
+            print_fail(f"  ✗ CH{channel} Current FAIL: {current:.3f}A (> 3.0A)")
+            print(TROUBLESHOOT["wib_current_high"])
+    else:
+        print_pass(f"  ✓ CH{channel} Current PASS: {current:.3f}A")
+
+    return v_ok and c_ok
+
+def validate_femb_rail(slot_idx, rail_name, v_set, v_meas, i_meas):
+    """Validate FEMB power rail and show troubleshooting if failed"""
+    thresholds = RAIL_THRESHOLDS.get(rail_name.upper(), {"V_tol": 0.15, "I_min": 0.0, "I_max": 1.0})
+
+    v_ok = abs(v_meas - v_set) <= thresholds["V_tol"]
+    i_ok = thresholds["I_min"] <= i_meas <= thresholds["I_max"]
+
+    if v_ok and i_ok:
+        print_pass(f"    ✓ {rail_name}: V={v_meas:.3f}V I={i_meas:.3f}A - PASS")
+    else:
+        if not v_ok:
+            print_fail(f"    ✗ {rail_name}: V={v_meas:.3f}V (expected {v_set:.2f}±{thresholds['V_tol']}V) - FAIL")
+            print(TROUBLESHOOT["femb_voltage"])
+        if not i_ok:
+            print_fail(f"    ✗ {rail_name}: I={i_meas:.3f}A (expected {thresholds['I_min']}-{thresholds['I_max']}A) - FAIL")
+            if i_meas > thresholds["I_max"]:
+                print(TROUBLESHOOT["femb_current_high"])
+
+    return v_ok and i_ok
+
+def retry_prompt(test_name):
+    """Prompt user for retry, skip, or exit"""
+    print_warning(f"\n  {test_name} has failures.")
+    print("  Options:")
+    print("    [R] Retry this test")
+    print("    [S] Skip and continue")
+    print("    [E] Exit test")
+
+    while True:
+        choice = input("  Enter choice (R/S/E): ").strip().upper()
+        if choice in ['R', 'S', 'E']:
+            return choice
+        print("  Invalid choice. Please enter R, S, or E.")
+
+print_header("A_RT03_01 : FEMB Power Rail Test (1V)")
 print("Testing 4 FEMB slots with 5 power rails each")
 print("Power rails: FE, CD, ADC, IDLE, BIAS")
-print("="*60 + "\n")
 
 t1 = time.time()
 psu = rigol.RigolDP800()
@@ -246,12 +443,9 @@ if rp_dict.csv_manager:
 
 import os
 
-# === Setup relative path to ../report/WIB_03_1V_power_report.html ===
-base_dir = os.path.dirname(os.path.abspath(__file__))
-target_file_path = os.path.join(base_dir, "..", "report", "WIB_03_1V_power_report.html")
-
-# Ensure target directory exists
-os.makedirs(os.path.dirname(target_file_path), exist_ok=True)
+# === Setup report path using centralized report_path module ===
+target_file_path = get_report_path("Test03_1V_power_report.html")
+print(f"Report path: {target_file_path}")
 
 # Define power rail thresholds for validation
 VOLTAGE_TOLERANCE = 0.15  # ±0.15V from set value
@@ -278,12 +472,16 @@ for slot_name, slot_dict in slot_data:
         v_meas = float(slot_dict.get(f'V_{rail}_meas', 0))
         i_meas = float(slot_dict.get(f'I_{rail}_meas', 0))
 
+        # Skip IDLE rail from pass/fail decision (informational only)
+        if rail == 'idle':
+            continue
+
         # Voltage check
         if abs(v_meas - v_set) > VOLTAGE_TOLERANCE:
             all_passed = False
 
         # Current check
-        rail_upper = rail.upper() if rail != 'idle' else 'IDLE'
+        rail_upper = rail.upper()
         if rail_upper in RAIL_THRESHOLDS:
             thresholds = RAIL_THRESHOLDS[rail_upper]
             if not (thresholds["I_min"] <= i_meas <= thresholds["I_max"]):
@@ -291,6 +489,73 @@ for slot_name, slot_dict in slot_data:
 
 overall_status = "PASS" if all_passed else "FAIL"
 overall_status_class = "pass" if all_passed else "fail"
+
+# ============================================================================
+# TEST SUMMARY
+# ============================================================================
+print_header("Test03: FEMB Power Rail Test (1V) - SUMMARY")
+
+# Count pass/fail for each slot (excluding IDLE rail from decision)
+slot_results = []
+for slot_name, slot_dict in slot_data:
+    slot_passed = True
+    for rail in ['fe', 'cd', 'adc', 'idle', 'bias']:
+        # Skip IDLE rail from pass/fail decision (informational only)
+        if rail == 'idle':
+            continue
+
+        v_set = float(slot_dict.get(f'v_{rail}', 0))
+        v_meas = float(slot_dict.get(f'V_{rail}_meas', 0))
+        i_meas = float(slot_dict.get(f'I_{rail}_meas', 0))
+
+        # Voltage check
+        if abs(v_meas - v_set) > VOLTAGE_TOLERANCE:
+            slot_passed = False
+
+        # Current check
+        rail_upper = rail.upper()
+        if rail_upper in RAIL_THRESHOLDS:
+            thresh = RAIL_THRESHOLDS[rail_upper]
+            if not (thresh["I_min"] <= i_meas <= thresh["I_max"]):
+                slot_passed = False
+
+    slot_results.append((slot_name, slot_passed))
+
+print("\n  Slot Results:")
+print("  " + "=" * 50)
+passed_count = 0
+failed_count = 0
+for slot_name, slot_result in slot_results:
+    if slot_result:
+        print_pass(f"    [PASS] {slot_name}")
+        passed_count += 1
+    else:
+        print_fail(f"    [FAIL] {slot_name}")
+        failed_count += 1
+
+# WIB Power check
+wib_v1 = rp_dict.log03_femb_slot0.get('wib_v1', 0)
+wib_c1 = rp_dict.log03_femb_slot0.get('wib_c1', 0)
+wib_v2 = rp_dict.log03_femb_slot0.get('wib_v2', 0)
+wib_c2 = rp_dict.log03_femb_slot0.get('wib_c2', 0)
+wib_power_ok = (11.0 <= wib_v1 <= 13.0 and 0.5 <= wib_c1 <= 3.0 and
+                11.0 <= wib_v2 <= 13.0 and 0.5 <= wib_c2 <= 3.0)
+
+if wib_power_ok:
+    print_pass(f"    [PASS] WIB Power Supply")
+else:
+    print_fail(f"    [FAIL] WIB Power Supply")
+
+print("  " + "=" * 50)
+total_power = (wib_v1 * wib_c1) + (wib_v2 * wib_c2)
+
+if all_passed:
+    print_pass(f"\n  OVERALL RESULT: PASS ({passed_count}/4 slots passed)")
+else:
+    print_fail(f"\n  OVERALL RESULT: FAIL ({failed_count} slot(s) failed)")
+
+print(f"\n  Test Duration: {test_duration} seconds")
+print(f"  Total WIB Power: {total_power:.3f} W")
 
 # Generate professional HTML report (Clean & Simple Style)
 html_content = f"""<!DOCTYPE html>
@@ -418,6 +683,10 @@ html_content = f"""<!DOCTYPE html>
         }}
         .status-fail {{
             color: #991b1b;
+        }}
+        .status-info {{
+            color: #6b7280;
+            font-style: italic;
         }}
         .error-cell {{
             background: #fee2e2 !important;
@@ -557,19 +826,26 @@ for slot_idx, (slot_name, slot_dict) in enumerate(slot_data):
         i_meas = float(slot_dict.get(f'I_{rail_key}_meas', 0))
         p_meas = v_meas * i_meas
 
-        # Voltage validation
-        v_error = abs(v_meas - v_set) > VOLTAGE_TOLERANCE
+        # IDLE rail is informational only, does not affect pass/fail
+        if rail_name == 'IDLE':
+            status = "INFO"
+            status_class = "status-info"
+            v_error_class = ''
+            i_error_class = ''
+        else:
+            # Voltage validation
+            v_error = abs(v_meas - v_set) > VOLTAGE_TOLERANCE
 
-        # Current validation
-        i_error = False
-        if rail_name in RAIL_THRESHOLDS:
-            thresholds = RAIL_THRESHOLDS[rail_name]
-            i_error = not (thresholds["I_min"] <= i_meas <= thresholds["I_max"])
+            # Current validation
+            i_error = False
+            if rail_name in RAIL_THRESHOLDS:
+                thresholds = RAIL_THRESHOLDS[rail_name]
+                i_error = not (thresholds["I_min"] <= i_meas <= thresholds["I_max"])
 
-        status = "FAIL" if (v_error or i_error) else "PASS"
-        status_class = "status-fail" if (v_error or i_error) else "status-pass"
-        v_error_class = ' class="error-cell"' if v_error else ''
-        i_error_class = ' class="error-cell"' if i_error else ''
+            status = "FAIL" if (v_error or i_error) else "PASS"
+            status_class = "status-fail" if (v_error or i_error) else "status-pass"
+            v_error_class = ' class="error-cell"' if v_error else ''
+            i_error_class = ' class="error-cell"' if i_error else ''
 
         html_content += f"""
                     <tr>
@@ -601,11 +877,19 @@ html_content += f"""
 with open(target_file_path, "w", encoding="utf-8") as f:
     f.write(html_content)
 
-print(f"\n\033[32mHTML report saved to: {target_file_path}\033[0m\n")
+print_pass(f"\nHTML report saved to: {target_file_path}\n")
+
+# Print test result summary
+print("=" * 60)
+print(f"  FEMB Power Rail Test (1V) - {overall_status}")
+print(f"  Test completed in {test_duration} seconds")
+print(f"  {passed_count}/4 slots passed")
+print(f"  Report: {target_file_path}")
+print("=" * 60)
 
 # Safe power off and cleanup
 time.sleep(0.5)
 print("Turning off power supply...")
 psu.safe_power_off()
 psu.close()
-print("\033[32mTest03 completed successfully!\033[0m")
+print_pass("Test03 completed successfully!")
