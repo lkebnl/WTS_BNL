@@ -3,29 +3,16 @@ Report Path Utility Module
 
 This module manages the centralized report directory structure for WIB QC testing.
 
+IMPORTANT: Call init_session() ONCE at the start of WIB_QC_Detail.py.
+           All test subprocesses will read from the same session file.
+
 Report Structure:
     /home/dune/Documents/WIB_QC/
-    └── {WIB_ID}_{MM_DD_YYYY}/
+    └── {WIB_ID}_{MM_DD_YYYY_HH_MM}/
         ├── Test01_Communication_report.html
         ├── Test02_Calibration_report.html
-        ├── Test03_1V_power_report.html
         ├── ...
-        └── Test07_IBERT/
-            ├── WIB_07_IBERT_report.html
-            ├── eye_scan_X0Y4.png
-            └── ...
-
-Usage:
-    from function.report_path import get_report_dir, get_report_path
-
-    # Get report directory for current WIB
-    report_dir = get_report_dir()  # Uses default WIB_ID "qc_debug"
-
-    # Get report directory with specific WIB_ID
-    report_dir = get_report_dir(wib_id="WIB_001")
-
-    # Get full path for a specific report file
-    report_path = get_report_path("Test01_Communication_report.html")
+        └── Final_Report.pdf
 """
 
 import os
@@ -41,39 +28,105 @@ WIB_QC_BASE_DIR = "/home/dune/Documents/WIB_QC"
 # Default WIB ID for testing/debugging
 DEFAULT_WIB_ID = "qc_debug"
 
-# Global variable to store current session's WIB_ID
-_current_wib_id = None
-_current_report_dir = None
+# Session file to store the report path (shared across subprocesses)
+SESSION_FILE = os.path.join(os.path.dirname(__file__), '..', '.current_session.txt')
 
 
-def set_wib_id(wib_id):
+def init_session(wib_id=None, force_new=False):
     """
-    Set the WIB ID for the current test session.
-    This should be called at the start of testing.
+    Initialize a test session. Creates the report folder ONCE.
+    Saves the path to a session file so all subprocess tests can use it.
+
+    IMPORTANT: If a session already exists (from WIB_QC_Detail.py), this function
+    will return the existing session path instead of creating a new one.
 
     Args:
-        wib_id: The WIB board identifier
+        wib_id: WIB board ID. If None, reads from rp_dict.wib_info or uses default.
+        force_new: If True, always create a new session (used by WIB_QC_Detail.py only)
+
+    Returns:
+        Path to the report directory for this session.
     """
-    global _current_wib_id, _current_report_dir
-    _current_wib_id = wib_id
-    _current_report_dir = None  # Reset so it gets regenerated
+    # Check if session already exists (don't overwrite existing session from WIB_QC_Detail.py)
+    if not force_new:
+        existing_dir, existing_wib_id = _read_session_file()
+        if existing_dir and os.path.exists(existing_dir):
+            print(f"[path_debug] Using existing session: {existing_dir}")
+            return existing_dir
+
+    # Get WIB ID
+    if not wib_id:
+        try:
+            import file.report_dict as rp_dict
+            wib_id = rp_dict.wib_info.get('WIB_ID', None)
+            if not wib_id or wib_id == '':
+                wib_id = None
+        except (ImportError, AttributeError):
+            pass
+
+    if not wib_id:
+        wib_id = DEFAULT_WIB_ID
+
+    # Create folder name with current timestamp
+    date_str = datetime.now().strftime("%m_%d_%Y_%H_%M")
+    dir_name = f"{wib_id}_{date_str}"
+    report_dir = os.path.join(WIB_QC_BASE_DIR, dir_name)
+
+    # Create the directory
+    os.makedirs(report_dir, exist_ok=True)
+
+    # Save to session file (so subprocesses can read it)
+    session_file_path = os.path.abspath(SESSION_FILE)
+    with open(session_file_path, 'w') as f:
+        f.write(f"{report_dir}\n{wib_id}\n")
+
+    print(f"\n{'=' * 60}")
+    print("TEST SESSION INITIALIZED")
+    print(f"{'=' * 60}")
+    print(f"  WIB ID: {wib_id}")
+    print(f"  Report Directory: {report_dir}")
+    print(f"  Session File: {session_file_path}")
+    print(f"  (All tests will save reports to this folder)")
+    print(f"{'=' * 60}\n")
+
+    return report_dir
+
+
+def _read_session_file():
+    """Read the session file to get the current report directory."""
+    session_file_path = os.path.abspath(SESSION_FILE)
+    if os.path.exists(session_file_path):
+        try:
+            with open(session_file_path, 'r') as f:
+                lines = f.readlines()
+                if len(lines) >= 2:
+                    report_dir = lines[0].strip()
+                    wib_id = lines[1].strip()
+                    if os.path.exists(report_dir):
+                        return report_dir, wib_id
+        except Exception as e:
+            print(f"[path_debug] Warning: Could not read session file: {e}")
+    return None, None
 
 
 def get_wib_id():
-    """
-    Get the current WIB ID.
-    Checks in order:
-    1. _current_wib_id (set via set_wib_id())
-    2. rp_dict.wib_info['WIB_ID'] (set via GUI)
-    3. DEFAULT_WIB_ID ("qc_debug")
-    """
-    global _current_wib_id
+    """Get the current session's WIB ID."""
+    # First try session file
+    _, wib_id = _read_session_file()
+    if wib_id:
+        return wib_id
 
-    # First check if explicitly set
-    if _current_wib_id:
-        return _current_wib_id
+    # Try session_info module
+    try:
+        from function.session_info import get_session_info
+        session_info = get_session_info()
+        wib_id = session_info.get('WIB_ID', None)
+        if wib_id and wib_id != '' and wib_id != 'standalone_test':
+            return wib_id
+    except (ImportError, AttributeError):
+        pass
 
-    # Then check rp_dict.wib_info (from GUI input)
+    # Try rp_dict.wib_info
     try:
         import file.report_dict as rp_dict
         wib_id = rp_dict.wib_info.get('WIB_ID', None)
@@ -82,79 +135,55 @@ def get_wib_id():
     except (ImportError, AttributeError):
         pass
 
-    # Default fallback
     return DEFAULT_WIB_ID
-
-
-def get_date_string():
-    """
-    Get current date and time in MM_DD_YYYY_HH_MM format.
-    Includes hours and minutes to distinguish multiple test sessions per day.
-    """
-    return datetime.now().strftime("%m_%d_%Y_%H_%M")
 
 
 def get_report_dir(wib_id=None, create=True):
     """
-    Get the report directory path for a WIB board.
-    Creates the directory if it doesn't exist.
+    Get the report directory path for the current session.
 
-    Args:
-        wib_id: Optional WIB ID. If None, uses current session WIB_ID or default.
-        create: If True, creates the directory if it doesn't exist.
+    Reads from session file (created by init_session in WIB_QC_Detail.py).
+    All test subprocesses will get the SAME path.
 
     Returns:
         Full path to the report directory.
-
-    Example:
-        /home/dune/Documents/WIB_QC/qc_debug_02_24_2026/
     """
-    global _current_report_dir
+    # First, try to read from session file (set by WIB_QC_Detail.py)
+    report_dir, session_wib_id = _read_session_file()
 
-    # Use provided wib_id, or current session, or default
-    if wib_id is None:
+    if report_dir:
+        print(f"[path_debug] Using session path: {report_dir}")
+        return report_dir
+
+    # No session file - create new path (standalone test run)
+    print(f"[path_debug] No session file found, creating new path")
+
+    if not wib_id:
         wib_id = get_wib_id()
 
-    # Get date string
-    date_str = get_date_string()
-
-    # Build directory name: WIB_ID_MM_DD_YYYY
+    date_str = datetime.now().strftime("%m_%d_%Y_%H_%M")
     dir_name = f"{wib_id}_{date_str}"
-
-    # Full path
     report_dir = os.path.join(WIB_QC_BASE_DIR, dir_name)
 
-    # Create directory if needed
     if create:
         os.makedirs(report_dir, exist_ok=True)
 
-    # Cache for session
-    if wib_id == get_wib_id():
-        _current_report_dir = report_dir
-
+    print(f"[path_debug] Created new path: {report_dir}")
     return report_dir
 
 
-def get_report_path(filename, wib_id=None, subdir=None):
+def get_report_path(filename, subdir=None):
     """
-    Get full path for a report file.
+    Get full path for a report file in the current session's folder.
 
     Args:
         filename: Name of the report file
-        wib_id: Optional WIB ID
-        subdir: Optional subdirectory within the report dir (e.g., "Test07_IBERT")
+        subdir: Optional subdirectory (e.g., "Test07_IBERT")
 
     Returns:
         Full path to the report file.
-
-    Example:
-        get_report_path("Test01_Communication_report.html")
-        -> /home/dune/Documents/WIB_QC/qc_debug_02_24_2026/Test01_Communication_report.html
-
-        get_report_path("eye_scan_X0Y4.png", subdir="Test07_IBERT")
-        -> /home/dune/Documents/WIB_QC/qc_debug_02_24_2026/Test07_IBERT/eye_scan_X0Y4.png
     """
-    report_dir = get_report_dir(wib_id=wib_id)
+    report_dir = get_report_dir()
 
     if subdir:
         subdir_path = os.path.join(report_dir, subdir)
@@ -164,68 +193,80 @@ def get_report_path(filename, wib_id=None, subdir=None):
     return os.path.join(report_dir, filename)
 
 
-def get_test_subdir(test_name, wib_id=None):
+def get_test_subdir(test_name):
     """
     Get or create a subdirectory for tests that generate multiple files.
 
     Args:
-        test_name: Name of the test (e.g., "Test07_IBERT", "Test0400_FEMB_Pulse")
-        wib_id: Optional WIB ID
+        test_name: Name of the test (e.g., "Test07_IBERT", "Test0400_FEMB_Slot0_Pulse")
 
     Returns:
         Full path to the test subdirectory.
     """
-    report_dir = get_report_dir(wib_id=wib_id)
+    report_dir = get_report_dir()
     subdir = os.path.join(report_dir, test_name)
     os.makedirs(subdir, exist_ok=True)
     return subdir
 
 
+def set_wib_id(wib_id):
+    """Set the WIB ID (call before init_session if needed)."""
+    # This is now handled by init_session reading from rp_dict
+    pass
+
+
 def print_report_info():
-    """Print current report directory information."""
+    """Print current session's report directory information."""
+    report_dir, wib_id = _read_session_file()
     print(f"\n{'=' * 60}")
-    print("REPORT DIRECTORY INFORMATION")
+    print("CURRENT SESSION INFO")
     print(f"{'=' * 60}")
-    print(f"  WIB ID: {get_wib_id()}")
-    print(f"  Date: {get_date_string()}")
-    print(f"  Report Directory: {get_report_dir(create=False)}")
+    print(f"  WIB ID: {wib_id or get_wib_id()}")
+    print(f"  Report Directory: {report_dir or get_report_dir()}")
     print(f"{'=' * 60}\n")
 
 
-# Convenience function for test scripts
+def clear_session():
+    """Clear the session file (call at end of testing if needed)."""
+    session_file_path = os.path.abspath(SESSION_FILE)
+    if os.path.exists(session_file_path):
+        os.remove(session_file_path)
+        print(f"[path_debug] Session file cleared: {session_file_path}")
+
+
+# Legacy alias for backward compatibility
 def init_report_session(wib_id=None):
     """
-    Initialize a report session. Call this at the start of testing.
+    Get the report session path for test components.
 
-    Args:
-        wib_id: WIB board ID. Defaults to "qc_debug" if not provided.
+    If called from a subprocess (session exists from WIB_QC_Detail.py),
+    returns the existing session path. Otherwise creates a new session.
 
-    Returns:
-        Path to the report directory.
+    Note: This NEVER creates a new session if one already exists.
+    Use init_session(force_new=True) in WIB_QC_Detail.py to start fresh.
     """
-    if wib_id:
-        set_wib_id(wib_id)
-
-    report_dir = get_report_dir()
-    print_report_info()
-
-    return report_dir
+    return init_session(wib_id, force_new=False)
 
 
 if __name__ == "__main__":
     # Test the module
     print("Testing report_path module...")
+    print("=" * 60)
 
-    # Test with default WIB_ID
-    print(f"\nDefault WIB_ID: {get_wib_id()}")
-    print(f"Date string: {get_date_string()}")
-    print(f"Report dir: {get_report_dir(create=False)}")
+    # Simulate WIB_QC_Detail.py initializing session
+    print("\n1. Initialize session (like WIB_QC_Detail.py):")
+    init_session(wib_id="TEST_001")
 
-    # Test with custom WIB_ID
-    set_wib_id("WIB_TEST_001")
-    print(f"\nCustom WIB_ID: {get_wib_id()}")
-    print(f"Report dir: {get_report_dir(create=False)}")
+    # Simulate subprocess tests calling get_report_dir
+    print("\n2. Subprocess tests call get_report_dir():")
+    for i in range(3):
+        path = get_report_dir()
+        print(f"   Test {i+1}: {path}")
 
-    # Test report paths
-    print(f"\nTest01 report: {get_report_path('Test01_Communication_report.html', wib_id='qc_debug')}")
-    print(f"IBERT subdir: {get_test_subdir('Test07_IBERT', wib_id='qc_debug')}")
+    print("\n3. Get report paths:")
+    print(f"   Test01: {get_report_path('Test01_report.html')}")
+    print(f"   Test07 subdir: {get_test_subdir('Test07_IBERT')}")
+
+    # Clean up
+    print("\n4. Clear session:")
+    clear_session()

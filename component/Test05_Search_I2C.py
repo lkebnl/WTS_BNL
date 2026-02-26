@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import function.Rigol_DP800 as rigol
 from function.csv_manager import WIB_QC_CSV_Manager
 from function.report_path import get_report_path, init_report_session
+from function.session_info import get_session_info, get_report_filename
 from function.ping_host import ping_host
 from datetime import datetime
 from function.cls_udp import CLS_UDP
@@ -665,14 +666,16 @@ if rp_dict.csv_manager:
 
 import os
 
-# === Setup report path using centralized report_path module ===
-target_file_path = get_report_path("Test05_I2C_Device_report.html")
-print(f"Report path: {target_file_path}")
-
 # Determine overall status
 all_devices_detected = all("Detected" in str(value) for value in rp_dict.log06_PTB.values())
-overall_status = "PASS" if all_devices_detected else "FAIL"
-overall_status_class = "status-pass" if all_devices_detected else "status-fail"
+overall_pass = all_devices_detected
+overall_status = "PASS" if overall_pass else "FAIL"
+overall_status_class = "status-pass" if overall_pass else "status-fail"
+
+# === Setup report path with pass/fail suffix ===
+report_filename = get_report_filename("Test05_I2C_Device_report", overall_pass)
+target_file_path = get_report_path(report_filename)
+print(f"Report path: {target_file_path}")
 
 # Count detected devices
 total_devices = len(rp_dict.log06_PTB)

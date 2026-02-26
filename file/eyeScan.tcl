@@ -1,3 +1,7 @@
+# Get output directory from environment variable (set by Python script)
+set output_dir $::env(EYE_SCAN_OUTPUT_DIR)
+puts "Eye scan output directory: $output_dir"
+
 open_hw_manager
 connect_hw_server
 open_hw
@@ -21,7 +25,7 @@ commit_hw_sio $link0
 set scan0 [create_hw_sio_scan -description {Scan 0} 2d_full_eye [get_hw_sio_rxs -of $link0]]
 run_hw_sio_scan [get_hw_sio_scans $scan0]
 after 10000
-write_hw_sio_scan -force "./scan00.csv" [get_hw_sio_scans {SCAN_0}]
+write_hw_sio_scan -force "$output_dir/scan00_X0Y4.csv" [get_hw_sio_scans {SCAN_0}]
 
 refresh_hw_device [lindex [get_hw_devices] 1]
 # Set Up Link on first GT
@@ -36,4 +40,4 @@ commit_hw_sio $link1
 set scan1 [create_hw_sio_scan -description {Scan 1} 2d_full_eye [get_hw_sio_rxs -of $link1]]
 run_hw_sio_scan [get_hw_sio_scans $scan1]
 after 10000
-write_hw_sio_scan -force "./scan01.csv" [get_hw_sio_scans {SCAN_1}]
+write_hw_sio_scan -force "$output_dir/scan01_X0Y5.csv" [get_hw_sio_scans {SCAN_1}]

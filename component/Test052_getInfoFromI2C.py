@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # from function.rigol_dp832_ps import RIGOL_PS_CTL
 import function.Rigol_DP800 as rigol
 from function.report_path import get_report_path, init_report_session
+from function.session_info import get_session_info, get_report_filename
 import time
 from function.ping_host import ping_host
 from datetime import datetime
@@ -1023,8 +1024,12 @@ psu.close()
 
 import os
 
-# === Setup report path using centralized report_path module ===
-target_file_path = get_report_path("Test052_I2C_Sensor_Info.html")
+# Determine overall pass/fail status based on sensor failures
+overall_pass = len(sensor_failures) == 0
+
+# === Setup report path with pass/fail suffix ===
+report_filename = get_report_filename("Test052_I2C_Sensor_Info", overall_pass)
+target_file_path = get_report_path(report_filename)
 print(f"Report path: {target_file_path}")
 
 # Organize measurements by category

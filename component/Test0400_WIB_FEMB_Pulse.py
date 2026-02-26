@@ -23,6 +23,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import function.Rigol_DP800 as rigol
 from function.report_path import get_test_subdir, init_report_session
+from function.session_info import get_session_info
 from function.cls_udp import CLS_UDP
 from function.tcp_cfg import TCP_CFG
 import struct

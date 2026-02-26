@@ -3,6 +3,8 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import file.report_dict as rd
+from function.report_path import init_session
+from function.session_info import init_session_info
 import csv
 import subprocess
 import time
@@ -27,14 +29,31 @@ target_file_path = os.path.join(base_dir, ".", "file", "wib_info.csv")
 
 input_name = input('Please input your name: ')
 
-# Get tester email using terminal input
-print("\nEmail will be used for result notification.")
-tester_email = input('Enter your email (press Enter to skip): ').strip()
-if tester_email and '@' in tester_email:
-    print(f"Email: {tester_email}")
-else:
-    tester_email = ""
-    print("Email notification skipped.")
+# Get tester email using terminal input with double confirmation (required)
+print("\nEmail is required for result notification.")
+tester_email = ""
+while True:
+    email_input1 = input('Enter your email: ').strip()
+
+    # Email is required
+    if not email_input1:
+        print("\033[33mEmail is required. Please enter your email.\033[0m")
+        continue
+
+    # Validate email format
+    if '@' not in email_input1:
+        print("\033[33mInvalid email format. Please try again.\033[0m")
+        continue
+
+    # Double confirmation - ask to enter email again
+    email_input2 = input('Confirm your email (enter again): ').strip()
+
+    if email_input1 == email_input2:
+        tester_email = email_input1
+        print(f"\033[32mEmail confirmed: {tester_email}\033[0m")
+        break
+    else:
+        print("\033[31mEmails do not match. Please try again.\033[0m")
 
 # Show instruction popup for test preparation
 pop.show_image_popup(
@@ -93,6 +112,20 @@ with open(target_file_path, mode="w", newline="", encoding='utf-8-sig') as file:
 rd.wib_info = csv_data
 print(csv_data)
 
+# Initialize test session - creates report folder ONCE
+# All tests will save reports to this same folder
+# force_new=True ensures a fresh session even if one exists
+report_dir = init_session(force_new=True)
+
+# Initialize session info - stores all metadata for subprocesses
+init_session_info(
+    wib_id=WIB_id_0,
+    foam_box_id=foam_box_id,
+    tester=input_name,
+    test_site=csv_data.get('test_site', 'BNL'),
+    comment=csv_data.get('comment', 'WIB Reception Checkout test'),
+    report_dir=report_dir
+)
 pop.show_image_popup(
     title="Page 4: Install WIB",
     image_path=os.path.join(IMG_DIR, "4.png") if os.path.exists(os.path.join(IMG_DIR, "4.png")) else None

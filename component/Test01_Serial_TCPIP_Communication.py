@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from function.ping_host import ping_host
 from function.report_path import get_report_path, init_report_session, get_wib_id
+from function.session_info import get_session_info, get_report_filename
 import file.report_dict as rp_dict
 import function.Rigol_DP800 as rigol
 import GUI.send_email as send_email
@@ -291,10 +292,8 @@ def retry_test(test_func, test_name, psu, *args):
 def generate_html_report(com_port, adapter_name, test_duration, results):
     """
     Generate HTML report for communication tests.
+    Report filename includes _P (pass) or _F (fail) suffix.
     """
-    # Use centralized report path
-    target_file_path = get_report_path("Test01_Communication_report.html")
-
     uart_status = results['uart']['status']
     tcp_status = results['tcp']['status']
     udp_status = results['udp']['status']
@@ -302,6 +301,10 @@ def generate_html_report(com_port, adapter_name, test_duration, results):
     overall_pass = uart_status and tcp_status and udp_status
     overall_status = "PASS" if overall_pass else "FAIL"
     overall_class = "pass" if overall_pass else "fail"
+
+    # Use centralized report path with pass/fail suffix
+    report_filename = get_report_filename("Test01_Communication_report", overall_pass)
+    target_file_path = get_report_path(report_filename)
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -404,8 +407,23 @@ def main():
     t1 = time.time()
     utc_time = datetime.now(timezone.utc)
 
-    # Initialize report session with WIB_ID (default: qc_debug)
-    wib_id = rp_dict.wib_info.get('WIB_ID', 'qc_debug') if hasattr(rp_dict, 'wib_info') else 'qc_debug'
+    # Get session info (from WIB_QC_Detail.py or defaults for standalone run)
+    session_info = get_session_info()
+    wib_id = session_info.get('WIB_ID', 'standalone_test')
+    tester = session_info.get('tester', 'Unknown')
+    test_site = session_info.get('test_site', 'BNL')
+    foam_box_id = session_info.get('Foam_Box_ID', '')
+
+    # Debug output to verify session info is loaded
+    print("\n" + "-" * 40)
+    print("[session_info] Test01 loaded session:")
+    print(f"  WIB ID:      {wib_id}")
+    print(f"  Foam Box ID: {foam_box_id}")
+    print(f"  Tester:      {tester}")
+    print(f"  Test Site:   {test_site}")
+    print("-" * 40)
+
+    # Initialize report session (uses session file if available)
     init_report_session(wib_id)
 
     # Print header
@@ -543,9 +561,9 @@ def main():
             if not results['udp']['status']:
                 failed_items.append(("P15", "UDP Communication", results['udp']['note']))
 
-            # Get tester email from wib_info
+            # Get tester email from wib_info (session_info doesn't store email)
             tester_email = rp_dict.wib_info.get('tester_email', '') if hasattr(rp_dict, 'wib_info') else ''
-            wib_id = rp_dict.wib_info.get('WIB_ID', 'Unknown') if hasattr(rp_dict, 'wib_info') else 'Unknown'
+            # wib_id already loaded from session_info at start of main()
 
             if failed_items:
                 print("\n" + "=" * 60)

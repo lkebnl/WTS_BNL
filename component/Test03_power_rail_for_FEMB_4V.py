@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import function.Rigol_DP800 as rigol
 from function.csv_manager import WIB_QC_CSV_Manager
 from function.report_path import get_report_path, init_report_session
+from function.session_info import get_session_info, get_report_filename
 from function.ping_host import ping_host
 from datetime import datetime
 from function.cls_udp import CLS_UDP
@@ -262,9 +263,7 @@ if rp_dict.csv_manager:
 
 import os
 
-# === Setup report path using centralized report_path module ===
-target_file_path = get_report_path("Test03_4V_power_report.html")
-print(f"Report path: {target_file_path}")
+# Report path will be set after determining overall_pass status
 
 # Define power rail thresholds for validation
 VOLTAGE_TOLERANCE = 0.15  # ±0.15V from set value
@@ -308,6 +307,11 @@ for slot_name, slot_dict in slot_data:
 
 overall_status = "PASS" if all_passed else "FAIL"
 overall_status_class = "pass" if all_passed else "fail"
+
+# === Setup report path with pass/fail suffix ===
+report_filename = get_report_filename("Test03_4V_power_report", all_passed)
+target_file_path = get_report_path(report_filename)
+print(f"Report path: {target_file_path}")
 
 # ============================================================================
 # TEST SUMMARY

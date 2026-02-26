@@ -7,6 +7,7 @@ from function.cls_udp import CLS_UDP
 from function.tcp_cfg import TCP_CFG
 from function.raw_convertor import RAW_CONV
 from function.report_path import get_report_path, init_report_session
+from function.session_info import get_session_info, get_report_filename
 import datetime
 import file.report_dict as rp_dict
 import GUI.pop_window as pop
@@ -266,8 +267,23 @@ def retry_prompt(test_name):
 psu = rigol.RigolDP800()
 psu.safe_power_off()
 
-# Initialize report session with WIB_ID (default: qc_debug)
-wib_id = rp_dict.wib_info.get('WIB_ID', 'qc_debug') if hasattr(rp_dict, 'wib_info') else 'qc_debug'
+# Get session info (from WIB_QC_Detail.py or defaults for standalone run)
+session_info = get_session_info()
+wib_id = session_info.get('WIB_ID', 'standalone_test')
+tester = session_info.get('tester', 'Unknown')
+test_site = session_info.get('test_site', 'BNL')
+foam_box_id = session_info.get('Foam_Box_ID', '')
+
+# Debug output to verify session info is loaded
+print("\n" + "-" * 40)
+print("[session_info] Test02 loaded session:")
+print(f"  WIB ID:      {wib_id}")
+print(f"  Foam Box ID: {foam_box_id}")
+print(f"  Tester:      {tester}")
+print(f"  Test Site:   {test_site}")
+print("-" * 40)
+
+# Initialize report session (uses session file if available)
 init_report_session(wib_id)
 
 print_header("Test02: Calibration Path Control - Power On")
@@ -780,9 +796,7 @@ if rp_dict.csv_manager:
 
 psu.safe_power_off()
 
-# === Setup report path using centralized report_path module ===
-target_file_path = get_report_path("Test02_Calibration_report.html")
-print(f"Report path: {target_file_path}")
+# Report path will be set after determining overall_pass status
 
 # Collect values
 cal = rp_dict.log05_Cal
@@ -850,8 +864,14 @@ if not (4.0 <= total_power <= 30.0):
     power_passed = False
 
 # Overall status includes both calibration tests and power check
-overall_status = "PASS" if (all_passed and power_passed) else "FAIL"
-overall_status_class = "pass" if (all_passed and power_passed) else "fail"
+overall_pass = all_passed and power_passed
+overall_status = "PASS" if overall_pass else "FAIL"
+overall_status_class = "pass" if overall_pass else "fail"
+
+# === Setup report path with pass/fail suffix ===
+report_filename = get_report_filename("Test02_Calibration_report", overall_pass)
+target_file_path = get_report_path(report_filename)
+print(f"Report path: {target_file_path}")
 
 # HTML content with professional styling (Clean & Simple)
 html_content = f"""<!DOCTYPE html>

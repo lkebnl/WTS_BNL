@@ -14,6 +14,7 @@ import datetime
 
 import function.Rigol_DP800 as rigol
 from function.report_path import get_report_path, init_report_session
+from function.session_info import get_session_info, get_report_filename
 from function.ping_host import ping_host
 import file.report_dict as rp_dict
 
@@ -1135,14 +1136,16 @@ if rp_dict.csv_manager:
 import os
 from datetime import datetime
 
-# === Setup report path using centralized report_path module ===
-target_file_path = get_report_path("Test06_PTB_Interface.html")
-print(f"Report path: {target_file_path}")
-
 # Determine overall status
 all_tests_passed = all(value == True for value in rp_dict.log06_PTB.values())
-overall_status = "PASS" if all_tests_passed else "FAIL"
-overall_status_class = "status-pass" if all_tests_passed else "status-fail"
+overall_pass = all_tests_passed
+overall_status = "PASS" if overall_pass else "FAIL"
+overall_status_class = "status-pass" if overall_pass else "status-fail"
+
+# === Setup report path with pass/fail suffix ===
+report_filename = get_report_filename("Test06_PTB_Interface", overall_pass)
+target_file_path = get_report_path(report_filename)
+print(f"Report path: {target_file_path}")
 
 # Count test results
 total_tests = len(rp_dict.log06_PTB)

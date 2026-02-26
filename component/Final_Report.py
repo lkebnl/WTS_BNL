@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import file.report_dict as rp_dict
 from function.report_path import get_report_path, get_report_dir, get_wib_id
+from function.session_info import get_session_info
 
 # ============================================================
 # HELPER FUNCTIONS
@@ -63,96 +64,95 @@ def get_image_mime_type(image_path):
 # TEST REPORT MAPPING
 # ============================================================
 
-# Define test items and their report files
+# Define test items and their report files (base names without _P/_F suffix)
 TEST_ITEMS = [
     {
         'id': 'test01',
         'name': 'Test01: Serial/TCP/IP Communication',
-        'report_file': 'Test01_Communication_report.html',
+        'report_base': 'Test01_Communication_report',  # Will match _P.html or _F.html
         'rp_key': 'item01'
     },
     {
         'id': 'test02',
         'name': 'Test02: Calibration Path Control',
-        'report_file': 'Test02_Calibration_report.html',
+        'report_base': 'Test02_Calibration_report',
         'rp_key': 'item02'
     },
     {
         'id': 'test03_1v',
         'name': 'Test03: Power Rail FEMB 1V',
-        'report_file': 'Test03_1V_power_report.html',
+        'report_base': 'Test03_1V_power_report',
         'rp_key': 'item031'
     },
     {
         'id': 'test03_2v',
         'name': 'Test03: Power Rail FEMB 2V',
-        'report_file': 'Test03_2V_power_report.html',
+        'report_base': 'Test03_2V_power_report',
         'rp_key': 'item032'
     },
     {
         'id': 'test03_3v',
         'name': 'Test03: Power Rail FEMB 3V',
-        'report_file': 'Test03_3V_power_report.html',
+        'report_base': 'Test03_3V_power_report',
         'rp_key': 'item033'
     },
     {
         'id': 'test03_4v',
         'name': 'Test03: Power Rail FEMB 4V',
-        'report_file': 'Test03_4V_power_report.html',
+        'report_base': 'Test03_4V_power_report',
         'rp_key': 'item034'
     },
     {
         'id': 'test04_slot0',
         'name': 'Test04: WIB FEMB Pulse Slot 0',
-        'report_file': 'Test0400_FEMB_Slot0_Pulse',  # Directory
+        'report_base': 'Test0400_FEMB_Slot0_Pulse',  # Directory
         'rp_key': 'item041',
         'is_dir': True
     },
     {
         'id': 'test04_slot1',
         'name': 'Test04: WIB FEMB Pulse Slot 1',
-        'report_file': 'Test0401_FEMB_Slot1_Pulse',
+        'report_base': 'Test0401_FEMB_Slot1_Pulse',
         'rp_key': 'item042',
         'is_dir': True
     },
     {
         'id': 'test04_slot2',
         'name': 'Test04: WIB FEMB Pulse Slot 2',
-        'report_file': 'Test0402_FEMB_Slot2_Pulse',
+        'report_base': 'Test0402_FEMB_Slot2_Pulse',
         'rp_key': 'item043',
         'is_dir': True
     },
     {
         'id': 'test04_slot3',
         'name': 'Test04: WIB FEMB Pulse Slot 3',
-        'report_file': 'Test0403_FEMB_Slot3_Pulse',
+        'report_base': 'Test0403_FEMB_Slot3_Pulse',
         'rp_key': 'item044',
         'is_dir': True
     },
     {
         'id': 'test05',
         'name': 'Test05: I2C Device Search',
-        'report_file': 'Test05_I2C_Device_report.html',
+        'report_base': 'Test05_I2C_Device_report',
         'rp_key': 'item051'
     },
     {
         'id': 'test052',
         'name': 'Test052: I2C Sensor Information',
-        'report_file': 'Test052_I2C_Sensor_Info.html',
+        'report_base': 'Test052_I2C_Sensor_Info',
         'rp_key': 'item052'
     },
     {
         'id': 'test06',
         'name': 'Test06: PTB Interface Path',
-        'report_file': 'Test06_PTB_Interface.html',
+        'report_base': 'Test06_PTB_Interface',
         'rp_key': 'item06'
     },
     {
         'id': 'test07',
         'name': 'Test07: IBERT',
-        'report_file': 'Test07_IBERT',  # Directory
-        'rp_key': 'item07',
-        'is_dir': True
+        'report_base': 'Test07_IBERT_report',  # Uses _P.html or _F.html suffix
+        'rp_key': 'item07'
     }
 ]
 
@@ -161,13 +161,20 @@ TEST_ITEMS = [
 # ============================================================
 
 def find_report_html(report_dir, test_item):
-    """Find the HTML report file for a test item."""
-    report_file = test_item.get('report_file', '')
+    """
+    Find the HTML report file for a test item and determine pass/fail status.
+
+    Returns:
+        tuple: (html_path, passed)
+            - html_path: Full path to the HTML report, or None if not found
+            - passed: True if _P suffix, False if _F suffix, None if unknown/not found
+    """
+    report_base = test_item.get('report_base', '')
     is_dir = test_item.get('is_dir', False)
 
     if is_dir:
         # For directory-based tests, look for result.html inside
-        base_dir = os.path.join(report_dir, report_file)
+        base_dir = os.path.join(report_dir, report_base)
 
         # Check for subdirectories (e.g., FEMB0_RT_0pF)
         if os.path.exists(base_dir):
@@ -178,32 +185,49 @@ def find_report_html(report_dir, test_item):
                 subdir = sorted(subdirs)[-1]
                 result_html = os.path.join(base_dir, subdir, 'result.html')
                 if os.path.exists(result_html):
-                    return result_html
+                    # Directory-based tests: assume pass if result.html exists
+                    return result_html, True
 
             # Check for result.html directly in base_dir
             result_html = os.path.join(base_dir, 'result.html')
             if os.path.exists(result_html):
-                return result_html
+                return result_html, True
 
             # Check for WIB_07_IBERT_report.html (Test07)
             ibert_html = os.path.join(base_dir, 'WIB_07_IBERT_report.html')
             if os.path.exists(ibert_html):
-                return ibert_html
+                return ibert_html, True
 
         # Check for legacy incorrectly-named directories
-        for dir_name in os.listdir(report_dir):
-            if dir_name.startswith(report_file) and os.path.isdir(os.path.join(report_dir, dir_name)):
-                legacy_dir = os.path.join(report_dir, dir_name)
-                result_html = os.path.join(legacy_dir, 'result.html')
-                if os.path.exists(result_html):
-                    return result_html
-    else:
-        # Direct HTML file
-        html_path = os.path.join(report_dir, report_file)
-        if os.path.exists(html_path):
-            return html_path
+        try:
+            for dir_name in os.listdir(report_dir):
+                if dir_name.startswith(report_base) and os.path.isdir(os.path.join(report_dir, dir_name)):
+                    legacy_dir = os.path.join(report_dir, dir_name)
+                    result_html = os.path.join(legacy_dir, 'result.html')
+                    if os.path.exists(result_html):
+                        return result_html, True
+        except FileNotFoundError:
+            pass
 
-    return None
+        return None, None
+    else:
+        # Direct HTML file - check for _P.html or _F.html suffix
+        # First try _P (pass)
+        pass_html = os.path.join(report_dir, f"{report_base}_P.html")
+        if os.path.exists(pass_html):
+            return pass_html, True
+
+        # Then try _F (fail)
+        fail_html = os.path.join(report_dir, f"{report_base}_F.html")
+        if os.path.exists(fail_html):
+            return fail_html, False
+
+        # Legacy: check for file without suffix
+        legacy_html = os.path.join(report_dir, f"{report_base}.html")
+        if os.path.exists(legacy_html):
+            return legacy_html, None  # Unknown status for legacy files
+
+    return None, None
 
 def extract_body_content(html_path):
     """Extract the body content from an HTML file and convert images to base64."""
@@ -269,15 +293,26 @@ def generate_html_content(wib_info, report_dir):
     """Generate comprehensive HTML report with embedded test reports."""
 
     wib_id = wib_info.get('WIB_ID', 'Unknown')
-    tester = wib_info.get('tester_name', wib_info.get('Tester Name', 'Unknown'))
-    test_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    foam_box_id = wib_info.get('Foam_Box_ID', '')
+    tester = wib_info.get('tester', 'Unknown')
+    test_site = wib_info.get('test_site', 'Unknown')
+    start_time = wib_info.get('start_time', '')
+    test_date = start_time if start_time else datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    # Collect test info
+    # Collect test info - determine pass/fail from filename suffix (_P or _F)
     test_reports = []
     for item in TEST_ITEMS:
-        status, passed = get_test_status(item['rp_key'])
-        html_path = find_report_html(report_dir, item)
+        # Find report and determine pass/fail status from filename suffix
+        html_path, file_passed = find_report_html(report_dir, item)
         body_content = extract_body_content(html_path) if html_path else None
+
+        # Determine status: use filename suffix if available, otherwise use rp_dict
+        if file_passed is not None:
+            passed = file_passed
+            status = "PASS" if passed else "FAIL"
+        else:
+            # Fallback to rp_dict status (for legacy reports or missing files)
+            status, passed = get_test_status(item['rp_key'])
 
         test_reports.append({
             'id': item['id'],
@@ -288,7 +323,7 @@ def generate_html_content(wib_info, report_dir):
             'content': body_content
         })
 
-    # Count pass/fail
+    # Count pass/fail - overall PASS only if ALL tests passed
     total_tests = len(test_reports)
     passed_tests = sum(1 for r in test_reports if r['passed'])
     failed_tests = total_tests - passed_tests
@@ -304,8 +339,8 @@ def generate_html_content(wib_info, report_dir):
     <title>WIB QC Final Report - {wib_id}</title>
     <style>
         @page {{
-            size: A4;
-            margin: 10mm;
+            size: A4 landscape;
+            margin: 8mm;
         }}
         * {{
             margin: 0;
@@ -316,9 +351,9 @@ def generate_html_content(wib_info, report_dir):
             font-family: 'Segoe UI', Arial, sans-serif;
             background: #ffffff;
             color: #000000;
-            padding: 15px;
-            line-height: 1.4;
-            font-size: 10pt;
+            padding: 10px;
+            line-height: 1.3;
+            font-size: 9pt;
         }}
         .container {{
             max-width: 100%;
@@ -328,28 +363,28 @@ def generate_html_content(wib_info, report_dir):
         /* Header */
         .header {{
             text-align: center;
-            border-bottom: 3px solid #000;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
         }}
         .header h1 {{
-            font-size: 20pt;
+            font-size: 16pt;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }}
         .header .subtitle {{
-            font-size: 11pt;
+            font-size: 10pt;
             color: #666;
         }}
 
         /* Status Banner */
         .status-banner {{
             text-align: center;
-            padding: 10px;
-            margin: 15px 0;
-            font-size: 14pt;
+            padding: 8px;
+            margin: 10px 0;
+            font-size: 12pt;
             font-weight: bold;
-            border: 3px solid {status_color};
+            border: 2px solid {status_color};
             background-color: {'#d4edda' if overall_status == 'PASS' else '#f8d7da'};
             color: {status_color};
         }}
@@ -374,12 +409,12 @@ def generate_html_content(wib_info, report_dir):
 
         /* Summary Table */
         .summary-section {{
-            margin: 20px 0;
+            margin: 15px 0;
         }}
         .section-title {{
-            font-size: 13pt;
+            font-size: 11pt;
             font-weight: bold;
-            padding: 8px 12px;
+            padding: 6px 10px;
             background: #343a40;
             color: white;
             margin-bottom: 0;
@@ -387,17 +422,18 @@ def generate_html_content(wib_info, report_dir):
         .summary-table {{
             width: 100%;
             border-collapse: collapse;
+            font-size: 8pt;
         }}
         .summary-table th {{
             background-color: #495057;
             color: white;
             font-weight: bold;
             text-align: left;
-            padding: 8px 10px;
+            padding: 5px 8px;
             border: 1px solid #000;
         }}
         .summary-table td {{
-            padding: 8px 10px;
+            padding: 5px 8px;
             border: 1px solid #dee2e6;
         }}
         .summary-table tr:nth-child(even) {{
@@ -431,14 +467,14 @@ def generate_html_content(wib_info, report_dir):
         /* Test Report Section */
         .test-report {{
             page-break-before: always;
-            margin-top: 20px;
-            border: 2px solid #343a40;
+            margin-top: 10px;
+            border: 1px solid #343a40;
         }}
         .test-report-header {{
             background: #343a40;
             color: white;
-            padding: 10px 15px;
-            font-size: 12pt;
+            padding: 6px 10px;
+            font-size: 10pt;
             font-weight: bold;
         }}
         .test-report-header a {{
@@ -447,15 +483,23 @@ def generate_html_content(wib_info, report_dir):
         }}
         .back-to-top {{
             float: right;
-            font-size: 10pt;
+            font-size: 8pt;
             font-weight: normal;
         }}
         .test-report-content {{
-            padding: 15px;
+            padding: 10px;
             background: #fff;
         }}
+        .test-report-content img {{
+            max-width: 100%;
+            height: auto;
+        }}
+        .test-report-content table {{
+            font-size: 8pt;
+            width: 100%;
+        }}
         .no-report {{
-            padding: 40px;
+            padding: 30px;
             text-align: center;
             color: #999;
             font-style: italic;
@@ -499,8 +543,10 @@ def generate_html_content(wib_info, report_dir):
         <!-- Board Information -->
         <div class="info-grid">
             <div class="info-item"><span class="info-label">WIB ID:</span> {wib_id}</div>
+            <div class="info-item"><span class="info-label">Foam Box ID:</span> {foam_box_id}</div>
             <div class="info-item"><span class="info-label">Test Date:</span> {test_date}</div>
             <div class="info-item"><span class="info-label">Tester:</span> {tester}</div>
+            <div class="info-item"><span class="info-label">Test Site:</span> {test_site}</div>
             <div class="info-item"><span class="info-label">Tests Passed:</span> {passed_tests}/{total_tests}</div>
         </div>
 
@@ -616,10 +662,16 @@ def generate_final_report():
     """Generate the final comprehensive report."""
     print_header("Generating Final QC Report")
 
-    # Get WIB info
+    # Get session info (shared across subprocesses via JSON file)
+    session_info = get_session_info()
+
+    # Build wib_info from session_info (primary) with rp_dict fallback
     wib_info = {
-        'WIB_ID': rp_dict.wib_info.get('WIB_ID', get_wib_id()),
-        'tester_name': rp_dict.wib_info.get('tester_name', 'Unknown'),
+        'WIB_ID': session_info.get('WIB_ID') or rp_dict.wib_info.get('WIB_ID', get_wib_id()),
+        'Foam_Box_ID': session_info.get('Foam_Box_ID', ''),
+        'tester': session_info.get('tester') or rp_dict.wib_info.get('tester', 'Unknown'),
+        'test_site': session_info.get('test_site') or rp_dict.wib_info.get('test_site', 'Unknown'),
+        'start_time': session_info.get('start_time', ''),
         'date': datetime.now(timezone.utc)
     }
 
@@ -627,12 +679,17 @@ def generate_final_report():
     report_dir = get_report_dir()
     print_info(f"  Report Directory: {report_dir}")
 
-    # List available reports
+    # List available reports and their pass/fail status
     print_info("  Scanning for test reports...")
     for item in TEST_ITEMS:
-        html_path = find_report_html(report_dir, item)
+        html_path, file_passed = find_report_html(report_dir, item)
         if html_path:
-            print_pass(f"    ✓ {item['name']}")
+            if file_passed is True:
+                print_pass(f"    ✓ {item['name']} [PASS]")
+            elif file_passed is False:
+                print_fail(f"    ✗ {item['name']} [FAIL]")
+            else:
+                print_info(f"    ? {item['name']} [unknown status]")
         else:
             print_info(f"    - {item['name']} (not found)")
 
@@ -652,7 +709,10 @@ def generate_final_report():
 
     # Summary
     print_header("Final Report Generated")
-    print_info(f"  WIB ID: {wib_info['WIB_ID']}")
+    print_info(f"  WIB ID:       {wib_info['WIB_ID']}")
+    print_info(f"  Foam Box ID:  {wib_info.get('Foam_Box_ID', 'N/A')}")
+    print_info(f"  Tester:       {wib_info['tester']}")
+    print_info(f"  Test Site:    {wib_info['test_site']}")
     print_info(f"\n  HTML Report: {html_path}")
     if pdf_success:
         print_info(f"  PDF Report: {pdf_path}")
