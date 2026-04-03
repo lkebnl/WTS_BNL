@@ -1,3 +1,10 @@
+# Developer  : lke, cde
+# Email      : lingyun.lke@gmail.com
+# Date       : April 2026
+# Project    : DUNE WIB Quality Control System
+# Institute  : BNL (Brookhaven National Laboratory)
+# Repository : Public
+# Copyright  : © 2026 Lingyun Ke. All rights reserved.
 import sys
 import os
 # import path
@@ -814,6 +821,9 @@ html_content = f"""
     <div class="images">
         <img src="./Test07_IBERT/eye_scan_X0Y4.png" alt="Eye Scan X0Y4">
         <img src="./Test07_IBERT/eye_scan_X0Y5.png" alt="Eye Scan X0Y5">
+    </div>
+    <div class="footer">
+        <p>Made by Lingyun Ke</p>
     </div>
 </body>
 </html>

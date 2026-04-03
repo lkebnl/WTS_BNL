@@ -1,3 +1,10 @@
+# Developer  : lke, cde
+# Email      : lingyun.lke@gmail.com
+# Date       : April 2026
+# Project    : DUNE WIB Quality Control System
+# Institute  : BNL (Brookhaven National Laboratory)
+# Repository : Public
+# Copyright  : © 2026 Lingyun Ke. All rights reserved.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import logging
@@ -1140,7 +1147,7 @@ def cts_ssh_FEMB(root="D:/FEMB_QC/", QC_TST_EN=0, input_info=None):
         if True:
             logging.basicConfig(filename='QC.log',
                                 level=logging.INFO,
-                                format='%(asctime)s - %(levelname)s - %(message)s')  # Lingyun Ke set
+                                format='%(asctime)s - %(levelname)s - %(message)s - Made by Lingyun Ke')  # Lingyun Ke set
             logging.info('info: %s', logs)
 
     # Sync report directory to network if it exists

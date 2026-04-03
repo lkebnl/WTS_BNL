@@ -1,7 +1,21 @@
 #!/usr/bin/env python3
+# Developer  : lke, cde
+# Email      : lingyun.lke@gmail.com
+# Date       : April 2026
+# Project    : DUNE WIB Quality Control System
+# Institute  : BNL (Brookhaven National Laboratory)
+# Repository : Public
+# Copyright  : © 2026 Lingyun Ke. All rights reserved.
 """
 SD Card Flasher & Reporter
 Auto-detect 32GB SD card, write image, generate report
+
+Usage:
+  python Test0802_SD_image.py           Flash image to SD card and write identity
+  python Test0802_SD_image.py --read    Read identity from SD card (no flashing)
+
+Identity info written to SD card (unallocated space after image):
+  WIB_ID, Tester, Test_Site, Foam_Box_ID, Flash_Date, Image, Image_Size_Bytes
 """
 
 import subprocess
@@ -226,6 +240,80 @@ def flash_image(device, image_path):
     print(f"  Average speed: {image_size_mb / total_time:.1f} MB/s")
 
 
+def write_card_identity(device, image_path):
+    """
+    Write identity info to the unallocated space just after the image.
+    Does NOT touch any partition or filesystem.
+    Can be read back later with read_card_identity().
+    """
+    image_size_bytes = os.path.getsize(image_path)
+    # Start sector = first 512-byte sector beyond the image
+    start_sector = image_size_bytes // 512
+
+    wib_id      = _read_wib_info('WIB_ID')      or 'Unknown'
+    tester      = _read_wib_info('tester')      or 'Unknown'
+    test_site   = _read_wib_info('test_site')   or 'Unknown'
+    foam_box_id = _read_wib_info('Foam_Box_ID') or 'Unknown'
+    timestamp   = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    identity = (
+        f"WIB_ID={wib_id}\n"
+        f"Tester={tester}\n"
+        f"Test_Site={test_site}\n"
+        f"Foam_Box_ID={foam_box_id}\n"
+        f"Flash_Date={timestamp}\n"
+        f"Image={os.path.basename(image_path)}\n"
+        f"Image_Size_Bytes={image_size_bytes}\n"
+        f"Made by Lingyun Ke\n"
+    )
+
+    # Pad / truncate to exactly 512 bytes
+    identity_bytes = identity.encode('utf-8')[:512].ljust(512, b'\x00')
+
+    print(f"\n  [Identity] Writing to sector {start_sector} of {device}...")
+    try:
+        proc = subprocess.run(
+            f"echo '{get_sudo_password()}' | sudo -S dd of={device} bs=512 seek={start_sector} count=1 conv=notrunc",
+            input=identity_bytes,
+            shell=True,
+            capture_output=True
+        )
+        if proc.returncode == 0:
+            print(f"  ✓ Identity written successfully")
+            print(f"    WIB_ID        : {wib_id}")
+            print(f"    Tester        : {tester}")
+            print(f"    Test Site     : {test_site}")
+            print(f"    Foam Box ID   : {foam_box_id}")
+            print(f"    Flash Date    : {timestamp}")
+            print(f"    Image Size    : {image_size_bytes} bytes (sector offset: {start_sector})")
+        else:
+            print(f"  [Warning] Identity write failed: {proc.stderr.decode()}")
+    except Exception as e:
+        print(f"  [Warning] Identity write error: {e}")
+
+    return start_sector
+
+
+def read_card_identity(device, start_sector):
+    """Read back identity info from SD card unallocated space."""
+    print(f"\n  [Identity] Reading from sector {start_sector} of {device}...")
+    try:
+        proc = subprocess.run(
+            f"echo '{get_sudo_password()}' | sudo -S dd if={device} bs=512 skip={start_sector} count=1",
+            shell=True,
+            capture_output=True
+        )
+        data = proc.stdout.rstrip(b'\x00').decode('utf-8', errors='ignore')
+        print("  Identity on card:")
+        for line in data.splitlines():
+            if line.strip():
+                print(f"    {line}")
+        return data
+    except Exception as e:
+        print(f"  [Warning] Identity read error: {e}")
+        return None
+
+
 def generate_report(sd_info, image_path, success, error_msg=None):
     """Generate HTML report (integrated with QC report system)"""
     # Get centralized report directory
@@ -320,6 +408,9 @@ def generate_report(sd_info, image_path, success, error_msg=None):
         <tr><td>Production Date</td><td>{sd_info.get('date', 'N/A')}</td></tr>
         <tr><td>CID</td><td>{sd_info.get('cid', 'N/A')}</td></tr>
     </table>
+    <div style="text-align:center; margin-top:30px; color:#999; font-size:0.85em;">
+        <p>Made by Lingyun Ke</p>
+    </div>
 </body>
 </html>"""
 
@@ -385,8 +476,11 @@ def main():
 
     success = True
     error_msg = None
+    start_sector = None
     try:
         flash_image(selected["device"], image_path)
+        start_sector = write_card_identity(selected["device"], image_path)
+        read_card_identity(selected["device"], start_sector)
     except Exception as e:
         success = False
         error_msg = str(e)
@@ -397,5 +491,35 @@ def main():
     generate_report(sd_info, image_path, success, error_msg)
 
 
+def read_mode():
+    """Read identity from SD card without flashing."""
+    print("=" * 55)
+    print("  SD Card Identity Reader")
+    print("=" * 55)
+
+    candidates = find_sd_card()
+    if not candidates:
+        print("[Error] No SD card found")
+        sys.exit(1)
+
+    if len(candidates) > 1:
+        print("Multiple candidate devices found:")
+        for i, c in enumerate(candidates):
+            print(f"  [{i}] {c['device']}  {c['size_gb']} GB")
+        choice = int(input("Select device [0/1/...]: "))
+        device = candidates[choice]["device"]
+    else:
+        device = candidates[0]["device"]
+        print(f"  Device: {device}")
+
+    image_path = get_image_path()
+    image_size_bytes = os.path.getsize(image_path)
+    start_sector = image_size_bytes // 512
+    read_card_identity(device, start_sector)
+
+
 if __name__ == "__main__":
-    main()
+    if "--read" in sys.argv:
+        read_mode()
+    else:
+        main()

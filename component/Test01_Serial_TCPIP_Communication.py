@@ -1,3 +1,10 @@
+# Developer  : lke, cde
+# Email      : lingyun.lke@gmail.com
+# Date       : April 2026
+# Project    : DUNE WIB Quality Control System
+# Institute  : BNL (Brookhaven National Laboratory)
+# Repository : Public
+# Copyright  : © 2026 Lingyun Ke. All rights reserved.
 """
 Test01: Serial/TCP/IP Communication Test
 Tests UART, TCP/IP, and UDP communication with WIB board.
@@ -390,6 +397,7 @@ def generate_html_report(com_port, adapter_name, test_duration, results):
         <div class="footer">
             <p>DUNE WIB Quality Control System - Test01 Communication Test</p>
             <p>Report generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>Made by Lingyun Ke</p>
         </div>
     </div>
 </body>

@@ -1,3 +1,10 @@
+# Developer  : lke, cde
+# Email      : lingyun.lke@gmail.com
+# Date       : April 2026
+# Project    : DUNE WIB Quality Control System
+# Institute  : BNL (Brookhaven National Laboratory)
+# Repository : Public
+# Copyright  : © 2026 Lingyun Ke. All rights reserved.
 # -*- coding: utf-8 -*-
 """
 File Name: cls_femb_config.py
@@ -655,7 +662,8 @@ def generate_report(result_dict):
         <div class="footer">
             Report generated on {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br>
             DUNE WIB Quality Control System | FEMB Checkout Test
-            {' | <strong style="color: #dc2626;">ERRORS DETECTED - Review Required</strong>' if errors else ''}
+            {' | <strong style="color: #dc2626;">ERRORS DETECTED - Review Required</strong>' if errors else ''}<br>
+            Made by Lingyun Ke
         </div>
     </div>
 </body>

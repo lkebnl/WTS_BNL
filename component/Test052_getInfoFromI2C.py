@@ -1,3 +1,10 @@
+# Developer  : lke, cde
+# Email      : lingyun.lke@gmail.com
+# Date       : April 2026
+# Project    : DUNE WIB Quality Control System
+# Institute  : BNL (Brookhaven National Laboratory)
+# Repository : Public
+# Copyright  : © 2026 Lingyun Ke. All rights reserved.
 # WIB Power Rail
 import socket
 import sys
@@ -1219,6 +1226,7 @@ html_content = f"""<!DOCTYPE html>
         <div class="footer">
             <p>DUNE WIB Quality Control System</p>
             <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>Made by Lingyun Ke</p>
         </div>
     </div>
 </body>

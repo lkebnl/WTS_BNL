@@ -1,3 +1,10 @@
+# Developer  : lke, cde
+# Email      : lingyun.lke@gmail.com
+# Date       : April 2026
+# Project    : DUNE WIB Quality Control System
+# Institute  : BNL (Brookhaven National Laboratory)
+# Repository : Public
+# Copyright  : © 2026 Lingyun Ke. All rights reserved.
 """
 Final Report Generator for WIB QC Testing
 
@@ -640,6 +647,7 @@ def generate_html_content(wib_info, report_dir):
             <p>DUNE WIB Quality Control System - Final Report</p>
             <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             <p>Report Directory: {report_dir}</p>
+            <p>Made by Lingyun Ke</p>
         </div>
     </div>
 </body>
