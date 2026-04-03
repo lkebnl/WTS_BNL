@@ -141,6 +141,26 @@ pop.show_image_popup(
     image_path=os.path.join(IMG_DIR, "6.png") if os.path.exists(os.path.join(IMG_DIR, "6.png")) else None
 )
 
+pop.show_image_popup(
+    title="Page 7: Insert Test Cables into Slots",
+    image_path=os.path.join(IMG_DIR, "6.png") if os.path.exists(os.path.join(IMG_DIR, "7.png")) else None
+)
+
+pop.show_image_popup(
+    title="Page 8: Insert Test Cables into Slots",
+    image_path=os.path.join(IMG_DIR, "6.png") if os.path.exists(os.path.join(IMG_DIR, "8.png")) else None
+)
+
+# Page 9: Remove Cables and SD Card - with SD Flash option
+sd_flash_script = os.path.join(base_dir, "component", "Test0802_SD_image.py")
+pop.show_image_popup_with_action(
+    title="Page 9: Remove Cables and SD Card",
+    image_path=os.path.join(IMG_DIR, "9.png") if os.path.exists(os.path.join(IMG_DIR, "9.png")) else None,
+    action_button_text="Flash SD Card",
+    action_script_path=sd_flash_script,
+    continue_button_text="Continue"
+)
+
 subprocess.run(["python", "./component/Test01_Serial_TCPIP_Communication.py"])
 subprocess.run(["python", "./component/Test02_Calibration_Path_Control.py"])
 subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_1V.py"])
@@ -170,10 +190,7 @@ pop.show_result_popup(
 )
 
 
-pop.show_image_popup(
-    title="Page 9: Remove Cables and SD Card",
-    image_path=os.path.join(IMG_DIR, "9.png") if os.path.exists(os.path.join(IMG_DIR, "9.png")) else None
-)
+
 
 pop.show_image_popup(
     title="Page 10: Package WIB Board into ESD Bag & Foam",

@@ -888,3 +888,143 @@ def show_dual_input_popup(
 
     root.mainloop()
     return result["foam_box_id"], result["wib_id"]
+
+
+def show_image_popup_with_action(
+    title="Image Viewer",
+    image_path=None,
+    action_button_text="Run Action",
+    action_script_path=None,
+    continue_button_text="Continue"
+):
+    """
+    Display a fullscreen popup showing an image with two buttons on the right:
+    - Upper button: Runs a script in a new terminal
+    - Lower button: Continues to next step
+
+    Args:
+        title: Window title
+        image_path: Path to image to display
+        action_button_text: Text for the action button (upper)
+        action_script_path: Path to script to run when action button clicked
+        continue_button_text: Text for continue button (lower)
+
+    Returns:
+        dict with 'action_executed': True if action was run, False otherwise
+    """
+    import subprocess
+
+    result = {"action_executed": False}
+
+    def exit_fullscreen(event=None):
+        root.attributes('-fullscreen', False)
+
+    def close_window():
+        root.destroy()
+
+    def run_action():
+        """Run the script in a new terminal window"""
+        if action_script_path:
+            try:
+                # Launch in gnome-terminal (or xterm as fallback)
+                terminal_cmd = f'gnome-terminal -- bash -c "python3 {action_script_path}; echo; echo Press Enter to close...; read"'
+                subprocess.Popen(terminal_cmd, shell=True)
+                result["action_executed"] = True
+                status_label.config(text="Script launched in new terminal", foreground="green")
+                action_btn.config(state="disabled", text="Running...")
+            except Exception as e:
+                status_label.config(text=f"Error: {e}", foreground="red")
+
+    # === Initialize window ===
+    root = tk.Tk()
+    root.title(title)
+    root.attributes('-fullscreen', True)
+    root.bind("<Escape>", exit_fullscreen)
+
+    # === Screen size ===
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+
+    # === Main frame ===
+    main_frame = ttk.Frame(root, padding=20)
+    main_frame.pack(fill="both", expand=True)
+
+    # Grid: left column for image, right column for buttons
+    main_frame.columnconfigure(0, weight=3)
+    main_frame.columnconfigure(1, weight=1)
+    main_frame.rowconfigure(0, weight=1)
+
+    # === LEFT COLUMN: Image ===
+    if image_path:
+        try:
+            img = Image.open(image_path)
+
+            # Set width to ~70% of screen
+            img_width = int(screen_width * 0.70)
+            img_ratio = img.height / img.width
+            img_height = int(img_width * img_ratio)
+
+            # Clamp if too tall
+            if img_height > screen_height - 100:
+                img_height = screen_height - 100
+                img_width = int(img_height / img_ratio)
+
+            img = img.resize((img_width, img_height), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+
+            image_label = ttk.Label(main_frame, image=photo)
+            image_label.image = photo
+            image_label.grid(row=0, column=0, sticky="nsew", padx=(20, 40))
+        except Exception as e:
+            print(f"Error loading image: {e}")
+            error_label = ttk.Label(main_frame, text="Error loading image", font=("Arial", 24))
+            error_label.grid(row=0, column=0, sticky="nsew", padx=(20, 40))
+
+    # === RIGHT COLUMN: Buttons ===
+    button_frame = ttk.Frame(main_frame)
+    button_frame.grid(row=0, column=1, sticky="nsew", padx=(20, 40))
+
+    # Center buttons vertically
+    button_frame.rowconfigure(0, weight=1)
+    button_frame.rowconfigure(1, weight=0)
+    button_frame.rowconfigure(2, weight=0)
+    button_frame.rowconfigure(3, weight=0)
+    button_frame.rowconfigure(4, weight=0)
+    button_frame.rowconfigure(5, weight=1)
+
+    # Title
+    title_label = tk.Label(button_frame, text=title, font=("Arial", 24, "bold"))
+    title_label.grid(row=1, column=0, pady=(0, 30))
+
+    # Action button (upper) - Flash SD Card
+    action_btn = tk.Button(
+        button_frame,
+        text=action_button_text,
+        command=run_action,
+        font=("Arial", 20, "bold"),
+        width=20,
+        height=2,
+        bg="#2196F3",
+        fg="white"
+    )
+    action_btn.grid(row=2, column=0, pady=15)
+
+    # Status label
+    status_label = tk.Label(button_frame, text="", font=("Arial", 14))
+    status_label.grid(row=3, column=0, pady=10)
+
+    # Continue button (lower)
+    continue_btn = tk.Button(
+        button_frame,
+        text=continue_button_text,
+        command=close_window,
+        font=("Arial", 20),
+        width=20,
+        height=2,
+        bg="#4CAF50",
+        fg="white"
+    )
+    continue_btn.grid(row=4, column=0, pady=15)
+
+    root.mainloop()
+    return result

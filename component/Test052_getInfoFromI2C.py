@@ -377,12 +377,12 @@ def send_command(sock, command):
         return None
 
 
-def ltc2499_c_style_voltage(raw_bytes, vref=2.5):
+def ltc2499_c_style_voltage(raw_bytes, vref=2.578):
     """
     Matches C code conversion for LTC2499 single-ended mode.
 
     :param raw_bytes: List of 4 bytes from LTC2499 [MSB, ..., LSB]
-    :param vref: Reference voltage (default 2.5V)
+    :param vref: Reference voltage — actual circuit: 3.3V × 1K/(280+1K) ≈ 2.578V
     :return: Converted voltage in single-ended mode
     """
     if len(raw_bytes) != 4:
@@ -513,7 +513,7 @@ time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes, vref=2.578)) / 0.002 + 27
     rp_dict.log04_wib['LTC2499_BRD0_Temperature'] = temp_val
     sensors_read += 1
     validate_temperature(temp_val, 'LTC2499_BRD0_Temperature', result_dict=result_dict)
@@ -529,7 +529,7 @@ time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes, vref=2.578)) / 0.002 + 27
     rp_dict.log04_wib['LTC2499_BRD1_Temperature'] = temp_val
     sensors_read += 1
     validate_temperature(temp_val, 'LTC2499_BRD1_Temperature', result_dict=result_dict)
@@ -545,7 +545,7 @@ time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes, vref=2.578)) / 0.002 + 27
     rp_dict.log04_wib['LTC2499_BRD2_Temperature'] = temp_val
     sensors_read += 1
     validate_temperature(temp_val, 'LTC2499_BRD2_Temperature', result_dict=result_dict)
@@ -561,7 +561,7 @@ time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r4@0x15')
 try:
     raw_bytes = parse_ltc2499_output(temp_result)
-    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes)) / 0.002 + 27
+    temp_val = (0.598 - ltc2499_c_style_voltage(raw_bytes, vref=2.578)) / 0.002 + 27
     rp_dict.log04_wib['LTC2499_BRD3_Temperature'] = temp_val
     sensors_read += 1
     validate_temperature(temp_val, 'LTC2499_BRD3_Temperature', result_dict=result_dict)

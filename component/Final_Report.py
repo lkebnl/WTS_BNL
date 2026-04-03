@@ -153,6 +153,18 @@ TEST_ITEMS = [
         'name': 'Test07: IBERT',
         'report_base': 'Test07_IBERT_report',  # Uses _P.html or _F.html suffix
         'rp_key': 'item07'
+    },
+    {
+        'id': 'test11',
+        'name': 'Test11: SD Card Flash',
+        'report_base': 'Test11_SD_Flash_report',  # Uses _P.html or _F.html suffix
+        'rp_key': 'item11'
+    },
+    {
+        'id': 'test0803',
+        'name': 'Test0803: CTS FEMB Checkout',
+        'report_base': 'Test0803_CTS_Checkout_report',  # Uses _P.html or _F.html suffix
+        'rp_key': 'item0803'
     }
 ]
 
@@ -739,7 +751,9 @@ def fin_rep(item=1, status=True):
         51: ('item051', 'I2C Device Search'),
         52: ('item052', 'I2C Sensor Info'),
         6: ('item06', 'PTB Interface'),
-        7: ('item07', 'IBERT')
+        7: ('item07', 'IBERT'),
+        11: ('item11', 'SD Card Flash'),
+        803: ('item0803', 'CTS FEMB Checkout')
     }
 
     if item in status_map:
