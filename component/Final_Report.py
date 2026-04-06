@@ -162,10 +162,10 @@ TEST_ITEMS = [
         'rp_key': 'item07'
     },
     {
-        'id': 'test11',
-        'name': 'Test11: SD Card Flash',
-        'report_base': 'Test11_SD_Flash_report',  # Uses _P.html or _F.html suffix
-        'rp_key': 'item11'
+        'id': 'test0802',
+        'name': 'Test0802: SD Card Flash',
+        'report_base': 'Test0802_SD_Flash_report',  # Uses _P.html or _F.html suffix
+        'rp_key': 'item0802'
     },
     {
         'id': 'test0803',
@@ -760,7 +760,7 @@ def fin_rep(item=1, status=True):
         52: ('item052', 'I2C Sensor Info'),
         6: ('item06', 'PTB Interface'),
         7: ('item07', 'IBERT'),
-        11: ('item11', 'SD Card Flash'),
+        802: ('item0802', 'SD Card Flash'),
         803: ('item0803', 'CTS FEMB Checkout')
     }
 

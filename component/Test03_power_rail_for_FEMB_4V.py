@@ -136,7 +136,7 @@ rp_dict.log03_femb_slot3['v_bias'] = '5'
 
 for i in range(4):
     femb = i
-    tcp.femb_pwr_set(femb=femb, pwr_on=1, v_fe=set_v, v_cd=set_v, v_adc=set_v, v_N=set_v)
+    tcp.femb_pwr_set(femb=3, pwr_on=1, v_fe=set_v, v_cd=set_v, v_adc=set_v, v_N=set_v)
 
     time.sleep(1)
     print('debug')
@@ -149,7 +149,7 @@ for i in range(4):
     print(pwr_info[2])
     print(pwr_info[3])
 
-
+    input()
 
     if i == 0:
         rp_dict.log03_femb_slot0['V_fe_meas'] = pwr_info[0][0]

@@ -922,6 +922,7 @@ def show_image_popup_with_action(
     import subprocess
 
     result = {"action_executed": False}
+    run_count = [0]  # mutable counter for re-run tracking
 
     def exit_fullscreen(event=None):
         root.attributes('-fullscreen', False)
@@ -937,8 +938,10 @@ def show_image_popup_with_action(
                 terminal_cmd = f'gnome-terminal -- bash -c "python3 {action_script_path}; echo; echo Press Enter to close...; read"'
                 subprocess.Popen(terminal_cmd, shell=True)
                 result["action_executed"] = True
-                status_label.config(text="Script launched in new terminal", foreground="green")
-                action_btn.config(state="disabled", text="Running...")
+                run_count[0] += 1
+                count_str = f" (x{run_count[0]})" if run_count[0] > 1 else ""
+                status_label.config(text=f"Script launched{count_str} — re-run if needed", foreground="green")
+                action_btn.config(text=f"Re-run: {action_button_text}")
             except Exception as e:
                 status_label.config(text=f"Error: {e}", foreground="red")
 
@@ -1035,3 +1038,81 @@ def show_image_popup_with_action(
 
     root.mainloop()
     return result
+
+
+def show_confirm_popup(
+    title="Confirmation Required",
+    message="Type the keyword to continue.",
+    keyword="start",
+    hint=None
+):
+    """
+    Display a fullscreen confirmation popup.
+    The user must type the exact keyword (case-insensitive) to proceed.
+    The window cannot be closed until the correct keyword is entered.
+
+    Args:
+        title:   Window title
+        message: Instruction text shown to the user
+        keyword: The required keyword (default: 'start')
+        hint:    Optional hint shown below the entry (e.g. "Type 'start'")
+    """
+    if hint is None:
+        hint = f"Type  '{keyword}'  and press Enter to continue"
+
+    confirmed = [False]
+
+    root = tk.Tk()
+    root.title(title)
+    root.attributes('-fullscreen', True)
+
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+
+    # Outer frame — centered
+    outer = ttk.Frame(root)
+    outer.place(relx=0.5, rely=0.5, anchor="center")
+
+    # Title
+    tk.Label(outer, text=title, font=("Arial", 28, "bold")).pack(pady=(0, 30))
+
+    # Message
+    tk.Label(outer, text=message, font=("Arial", 18), wraplength=700,
+             justify="center").pack(pady=(0, 20))
+
+    # Hint
+    tk.Label(outer, text=hint, font=("Arial", 14), fg="#555555").pack(pady=(0, 10))
+
+    # Entry field
+    entry_var = tk.StringVar()
+    entry = tk.Entry(outer, textvariable=entry_var, font=("Arial", 22),
+                     width=20, justify="center")
+    entry.pack(pady=10)
+    entry.focus_set()
+
+    # Status label
+    status_label = tk.Label(outer, text="", font=("Arial", 14))
+    status_label.pack(pady=8)
+
+    def check_keyword(event=None):
+        typed = entry_var.get().strip().lower()
+        if typed == keyword.lower():
+            confirmed[0] = True
+            root.destroy()
+        else:
+            status_label.config(text=f"Incorrect — please type '{keyword}'", fg="red")
+            entry_var.set("")
+
+    # Confirm button
+    tk.Button(outer, text="Confirm", command=check_keyword,
+              font=("Arial", 18, "bold"), width=16, height=2,
+              bg="#2196F3", fg="white").pack(pady=15)
+
+    entry.bind("<Return>", check_keyword)
+
+    # Block Escape / window close — must type keyword to proceed
+    root.protocol("WM_DELETE_WINDOW", lambda: None)
+    root.bind("<Escape>", lambda e: None)
+
+    root.mainloop()
+    return confirmed[0]

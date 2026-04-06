@@ -321,7 +321,7 @@ def generate_report(sd_info, image_path, success, error_msg=None):
 
     # Determine pass/fail suffix
     result_suffix = "_P" if success else "_F"
-    report_path = os.path.join(report_dir, f"Test11_SD_Flash_report{result_suffix}.html")
+    report_path = os.path.join(report_dir, f"Test0802_SD_Flash_report{result_suffix}.html")
 
     status_str = "PASS" if success else "FAIL"
     status_color = "#28a745" if success else "#dc3545"

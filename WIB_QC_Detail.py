@@ -5,6 +5,8 @@
 # Institute  : BNL (Brookhaven National Laboratory)
 # Repository : Public
 # Copyright  : © 2026 Lingyun Ke. All rights reserved.
+from colorama import Fore, Style
+
 import numpy as np
 import sys
 import os
@@ -27,6 +29,26 @@ SENDER_PASSWORD = "vvef tosp minf wwhf"
 
 # Image paths for instruction popups
 IMG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'GUI', 'output_pngs')
+
+
+def confirm_function(com, message=None):
+    """
+    Safety confirmation gate. Loops until the user types the exact phrase.
+    :param com:     Required confirmation phrase (case-insensitive)
+    :param message: Optional instruction line. Defaults to generic prompt.
+    """
+    if message is None:
+        message = f"Please confirm by typing the phrase below to proceed."
+    while True:
+        print(Fore.YELLOW + "\n⚠️  SAFETY CHECK:" + Style.RESET_ALL)
+        print(message)
+        print("Type " + Fore.GREEN + f"'{com}'" + Style.RESET_ALL + " to proceed")
+        user_input = input(Fore.YELLOW + '>> ' + Style.RESET_ALL)
+        if user_input.strip().lower() == com.lower():
+            print(Fore.GREEN + '✓ Confirmed. Ready to proceed.' + Style.RESET_ALL)
+            break
+        else:
+            print(Fore.RED + f'✗ Incorrect. Please type exactly: {com}' + Style.RESET_ALL)
 
 t1 = time.time()
 print("\033[35m" + "A_RT00 : Input the Test Information" + "\033[0m")
@@ -168,6 +190,11 @@ pop.show_image_popup_with_action(
     continue_button_text="Continue"
 )
 
+confirm_function(
+      com="begin the test",
+      message="Are you ready for the WIB QC Test"
+  )
+
 subprocess.run(["python", "./component/Test01_Serial_TCPIP_Communication.py"])
 subprocess.run(["python", "./component/Test02_Calibration_Path_Control.py"])
 subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_1V.py"])
@@ -183,6 +210,15 @@ subprocess.run(["python", "./component/Test052_getInfoFromI2C.py"])
 subprocess.run(["python", "./component/Test06_PTB_Interface_Path.py"])
 print("Test07   IBERT Test Begin ...")
 subprocess.run(["python", "./component/Test07_IBERT.py"])
+pop.show_image_popup(
+    title="Page 8: Insert Test Cables into Slots",
+    image_path=os.path.join(IMG_DIR, "6.png") if os.path.exists(os.path.join(IMG_DIR, "8.png")) else None
+)
+confirm_function(
+    com="use production firmware sd card",
+    message="Please confirm the SD card have been replaced with production SD card."
+)
+subprocess.run(["python", "./component/Test0803_CTS_Checkout.py"])
 subprocess.run(["python", "./component/Final_Report.py"])
 t2 = time.time()
 test_duration = t2 - t1

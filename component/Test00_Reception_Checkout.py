@@ -69,9 +69,9 @@ print(f"✓ CSV results file created: {csv_filepath}\n")
 # fm_ps.off([1, 2, 3])
 
 
-item1 = input('Component Inspection Y/N')
+item1 = input('Component Inspection Y/N').strip().lower()
 print(item1)
-if item1 == 'n' or item1 == 'N':
+if item1 == 'n':
     rp_dict.log01_wib['Component Inspection'] = 'Failed'
     item1_status = 'FAIL'
 else:
@@ -84,8 +84,8 @@ rp_dict.log01_wib['item1_date'] = utc_time.strftime("%Y-%m-%d %H:%M:%S UTC")
 rp_dict.csv_manager.update_item("T00_01", item1_status, status=item1_status)
 
 # print('Insert SD card')
-item2 = input('Use LTpowerPlay configure the Power Rail')
-if item2 == 'n' or item2 == 'N':
+item2 = input('Use LTpowerPlay configure the Power Rail').strip().lower()
+if item2 == 'n':
     rp_dict.log01_wib['LTpowerPlay'] = 'Failed'
     item2_status = 'FAIL'
 else:
@@ -133,8 +133,8 @@ rp_dict.csv_manager.batch_update([
     {"item_id": "T00_04", "value": round(c2, 3), "status": c2_status}
 ])
 
-item3 = input('Install Front Panel')
-if item3 == 'n' or item3 == 'N':
+item3 = input('Install Front Panel').strip().lower()
+if item3 == 'n':
     rp_dict.log01_wib['Front_Panel'] = 'Failed'
     item3_status = 'FAIL'
 else:
