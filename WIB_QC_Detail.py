@@ -18,10 +18,11 @@ import csv
 import subprocess
 import time
 from datetime import datetime
-
+import function.Rigol_DP800 as rigol
 # Import GUI modules for email and pop-windows
 import GUI.send_email as send_email
 import GUI.pop_window as pop
+from function.heartbeat import start_watchdog_session, update_heartbeat, stop_watchdog
 
 # Email configuration
 SENDER_EMAIL = "bnlr216@gmail.com"
@@ -91,19 +92,29 @@ pop.show_image_popup(
 )
 
 pop.show_image_popup(
-    title="Page 2: ESD Preparation",
+    title="Page 2: WIB QC Test Preparation",
     image_path=os.path.join(IMG_DIR, "2.png") if os.path.exists(os.path.join(IMG_DIR, "2.png")) else None
+)
+
+pop.show_image_popup(
+    title="Page 3: WIB QC Test Preparation",
+    image_path=os.path.join(IMG_DIR, "3.png") if os.path.exists(os.path.join(IMG_DIR, "3.png")) else None
+)
+pop.show_image_popup(
+    title="Page 4: ESD Preparation",
+    image_path=os.path.join(IMG_DIR, "4.png") if os.path.exists(os.path.join(IMG_DIR, "4.png")) else None
 )
 
 # Scan Foam Box ID and WIB ID using dual input popup (both with double-check)
 print("\nInitial Scanner - Scan Foam Box ID and WIB ID")
 foam_box_id, WIB_id_0 = pop.show_dual_input_popup(
-    title="Page 3: Scan Foam Box ID and WIB ID",
-    image_path=os.path.join(IMG_DIR, "3.png") if os.path.exists(os.path.join(IMG_DIR, "3.png")) else None,
+    title="Page 5: Scan Foam Box ID and WIB ID",
+    image_path=os.path.join(IMG_DIR, "5.png") if os.path.exists(os.path.join(IMG_DIR, "5.png")) else None,
     prompt1="Scan Foam Box ID:",
     prompt2="Scan WIB ID:",
     require_confirmation=True
 )
+
 print(f"Foam Box ID: {foam_box_id}")
 print(f"WIB ID: {WIB_id_0}")
 
@@ -156,93 +167,165 @@ init_session_info(
     report_dir=report_dir
 )
 pop.show_image_popup(
-    title="Page 4: Install WIB",
-    image_path=os.path.join(IMG_DIR, "4.png") if os.path.exists(os.path.join(IMG_DIR, "4.png")) else None
-)
-
-pop.show_image_popup(
-    title="Page 5: Insert SFP Module and SD Card",
-    image_path=os.path.join(IMG_DIR, "5.png") if os.path.exists(os.path.join(IMG_DIR, "5.png")) else None
-)
-
-pop.show_image_popup(
-    title="Page 6: Insert Test Cables into Slots",
+    title="Page 6: Install WIB",
     image_path=os.path.join(IMG_DIR, "6.png") if os.path.exists(os.path.join(IMG_DIR, "6.png")) else None
 )
 
 pop.show_image_popup(
-    title="Page 7: Insert Test Cables into Slots",
-    image_path=os.path.join(IMG_DIR, "6.png") if os.path.exists(os.path.join(IMG_DIR, "7.png")) else None
-)
-
-pop.show_image_popup(
-    title="Page 8: Insert Test Cables into Slots",
-    image_path=os.path.join(IMG_DIR, "6.png") if os.path.exists(os.path.join(IMG_DIR, "8.png")) else None
+    title="Page 7: Insert SFP Module and SD Card",
+    image_path=os.path.join(IMG_DIR, "7.png") if os.path.exists(os.path.join(IMG_DIR, "7.png")) else None
 )
 
 # Page 9: Remove Cables and SD Card - with SD Flash option
 sd_flash_script = os.path.join(base_dir, "component", "Test0802_SD_image.py")
 pop.show_image_popup_with_action(
-    title="Page 9: Remove Cables and SD Card",
-    image_path=os.path.join(IMG_DIR, "9.png") if os.path.exists(os.path.join(IMG_DIR, "9.png")) else None,
+    title="Page 8: Remove Cables and SD Card",
+    image_path=os.path.join(IMG_DIR, "8.png") if os.path.exists(os.path.join(IMG_DIR, "8.png")) else None,
     action_button_text="Flash SD Card",
     action_script_path=sd_flash_script,
     continue_button_text="Continue"
 )
 
 confirm_function(
-      com="begin the test",
+      com="Begin WIB QC",
       message="Are you ready for the WIB QC Test"
   )
 
-subprocess.run(["python", "./component/Test01_Serial_TCPIP_Communication.py"])
-subprocess.run(["python", "./component/Test02_Calibration_Path_Control.py"])
-subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_1V.py"])
-subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_2V.py"])
-subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_3V.py"])
-subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_4V.py"])
-subprocess.run(["python", "./component/Test0400_WIB_FEMB_Pulse.py"])
-subprocess.run(["python", "./component/Test0401_WIB_FEMB_Pulse.py"])
-subprocess.run(["python", "./component/Test0402_WIB_FEMB_Pulse.py"])
-subprocess.run(["python", "./component/Test0403_WIB_FEMB_Pulse.py"])
-subprocess.run(["python", "./component/Test05_Search_I2C.py"])
-subprocess.run(["python", "./component/Test052_getInfoFromI2C.py"])
-subprocess.run(["python", "./component/Test06_PTB_Interface_Path.py"])
-print("Test07   IBERT Test Begin ...")
-subprocess.run(["python", "./component/Test07_IBERT.py"])
-pop.show_image_popup(
-    title="Page 8: Insert Test Cables into Slots",
-    image_path=os.path.join(IMG_DIR, "6.png") if os.path.exists(os.path.join(IMG_DIR, "8.png")) else None
+# Start watchdog — monitors each test and emails tester if process gets stuck
+start_watchdog_session(
+    wib_id=WIB_id_0,
+    tester_email=tester_email,
+    sender_email=SENDER_EMAIL,
+    sender_password=SENDER_PASSWORD,
 )
+watchdog_proc = subprocess.Popen(
+    ["python3", os.path.join(base_dir, "function", "watchdog.py")]
+)
+
+update_heartbeat("Test01_Serial_TCPIP_Communication", timeout_minutes=7)
+subprocess.run(["python", "./component/Test01_Serial_TCPIP_Communication.py"])
+
+update_heartbeat("Test02_Calibration_Path_Control", timeout_minutes=7)
+subprocess.run(["python", "./component/Test02_Calibration_Path_Control.py"])
+
+update_heartbeat("Test03_Power_Rail_1V", timeout_minutes=7)
+subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_1V.py"])
+
+update_heartbeat("Test03_Power_Rail_2V", timeout_minutes=7)
+subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_2V.py"])
+
+update_heartbeat("Test03_Power_Rail_3V", timeout_minutes=7)
+subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_3V.py"])
+
+update_heartbeat("Test03_Power_Rail_4V", timeout_minutes=7)
+subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_4V.py"])
+
+update_heartbeat("Test0400_WIB_FEMB_Pulse_Slot0", timeout_minutes=7)
+subprocess.run(["python", "./component/Test0400_WIB_FEMB_Pulse.py"])
+
+update_heartbeat("Test0401_WIB_FEMB_Pulse_Slot1", timeout_minutes=7)
+subprocess.run(["python", "./component/Test0401_WIB_FEMB_Pulse.py"])
+
+update_heartbeat("Test0402_WIB_FEMB_Pulse_Slot2", timeout_minutes=7)
+subprocess.run(["python", "./component/Test0402_WIB_FEMB_Pulse.py"])
+
+update_heartbeat("Test0403_WIB_FEMB_Pulse_Slot3", timeout_minutes=7)
+subprocess.run(["python", "./component/Test0403_WIB_FEMB_Pulse.py"])
+
+update_heartbeat("Test05_Search_I2C", timeout_minutes=7)
+subprocess.run(["python", "./component/Test05_Search_I2C.py"])
+
+update_heartbeat("Test052_I2C_Sensor_Info", timeout_minutes=7)
+subprocess.run(["python", "./component/Test052_getInfoFromI2C.py"])
+
+update_heartbeat("Test06_PTB_Interface", timeout_minutes=7)
+subprocess.run(["python", "./component/Test06_PTB_Interface_Path.py"])
+
+print("Test07   IBERT Test Begin ...")
+update_heartbeat("Test07_IBERT", timeout_minutes=20)
+subprocess.run(["python", "./component/Test07_IBERT.py"])
+
+pop.show_image_popup(
+    title="Page 11: Production SD Card Test",
+    image_path=os.path.join(IMG_DIR, "11.png") if os.path.exists(os.path.join(IMG_DIR, "11.png")) else None
+)
+
+pop.show_image_popup(
+    title="Page 12: Production SD Card Test",
+    image_path=os.path.join(IMG_DIR, "12.png") if os.path.exists(os.path.join(IMG_DIR, "12.png")) else None
+)
+
 confirm_function(
     com="use production firmware sd card",
     message="Please confirm the SD card have been replaced with production SD card."
 )
+
+# update_heartbeat("Item0801_copy_ssh", timeout_minutes=2)
+# subprocess.run(["python", "./component/Test0801_copy_ssh.py"])
+
+update_heartbeat("Test0803_CTS_Checkout", timeout_minutes=8)
 subprocess.run(["python", "./component/Test0803_CTS_Checkout.py"])
+
+psu = rigol.RigolDP800()
+psu.safe_power_off()
+psu.close()
+
+
+update_heartbeat("Final_Report", timeout_minutes=7)
 subprocess.run(["python", "./component/Final_Report.py"])
+
+stop_watchdog()
 t2 = time.time()
 test_duration = t2 - t1
 print(f"Test duration: {test_duration:.2f} seconds")
 
-# Show result popup
-pop.show_result_popup(
+pop.show_image_popup(
+    title="Page 13: Remove Components",
+    image_path=os.path.join(IMG_DIR, "13.png") if os.path.exists(os.path.join(IMG_DIR, "13.png")) else None
+)
+
+pop.show_image_popup(
+    title="Page 14: Release WIB Board",
+    image_path=os.path.join(IMG_DIR, "14.png") if os.path.exists(os.path.join(IMG_DIR, "14.png")) else None
+)
+
+# Determine overall pass/fail by checking for any _F.html in session report dir
+import glob
+_fail_files = glob.glob(os.path.join(report_dir, '*_F.html'))
+overall_result = "fail" if _fail_files else "pass"
+
+# Merged: Page 15 image + result display + rescan confirmation
+rescanned_wib, rescanned_foam = pop.show_result_with_rescan_popup(
     title="WIB QC Test Complete",
-    result_status="pass",
-    message=f"Foam Box ID: {foam_box_id}\nWIB ID: {WIB_id_0}\nTest Duration: {test_duration:.2f}s",
-    detail_link="file/final_report.html"
+    result_status=overall_result,
+    message=f"WIB ID: {WIB_id_0}    Foam Box: {foam_box_id}    Duration: {test_duration:.2f}s",
+    detail_link="file/final_report.html",
+    image_path=os.path.join(IMG_DIR, "15.png") if os.path.exists(os.path.join(IMG_DIR, "15.png")) else None,
+    wib_id=WIB_id_0,
+    foam_box_id=foam_box_id
 )
+print(f"Rescan confirmed — WIB: {rescanned_wib}  Foam Box: {rescanned_foam}")
+
+# Show packaging instruction based on result
+if overall_result == "pass":
+    pop.show_image_popup(
+        title="Page 16: WIB Passed — Package WIB Board",
+        image_path=os.path.join(IMG_DIR, "16.png") if os.path.exists(os.path.join(IMG_DIR, "16.png")) else None
+    )
+else:
+    pop.show_image_popup(
+        title="Page 17: WIB Failed — Follow Failure Procedure",
+        image_path=os.path.join(IMG_DIR, "17.png") if os.path.exists(os.path.join(IMG_DIR, "17.png")) else None
+    )
+
+
 
 
 
 
 pop.show_image_popup(
-    title="Page 10: Package WIB Board into ESD Bag & Foam",
-    image_path=os.path.join(IMG_DIR, "10.png") if os.path.exists(os.path.join(IMG_DIR, "10.png")) else None
-)
-
-pop.show_image_popup(
-    title="Page 11: Label WIB with Test Results",
-    image_path=os.path.join(IMG_DIR, "11.png") if os.path.exists(os.path.join(IMG_DIR, "11.png")) else None
+    title="Page 18: Clean the test sites",
+    image_path=os.path.join(IMG_DIR, "18.png") if os.path.exists(os.path.join(IMG_DIR, "18.png")) else None
 )
 
 
@@ -284,3 +367,4 @@ This is an automated message from the WIB QC Test System.
         print(f"Email sent to: {tester_email}")
     except Exception as e:
         print(f"Failed to send email: {e}")
+sys.exit(1)

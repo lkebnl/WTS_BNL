@@ -31,7 +31,7 @@ from function.report_path import get_report_dir
 
 # ── Configuration ────────────────────────────────────────
 # Default image path (can be overridden by wib_info.csv)
-DEFAULT_IMAGE_PATH = "/home/dune/Documents/zynq_sdcard_ceqc.img"
+DEFAULT_IMAGE_PATH = "/home/dune/Documents/Production.img"
 TARGET_SIZE_GB = 32
 SIZE_TOLERANCE_GB = 4
 WIB_INFO_PATH = os.path.join(os.path.dirname(__file__), '..', 'file', 'wib_info.csv')
@@ -172,6 +172,125 @@ def get_sd_info(device_name):
     return info
 
 
+AUTO_SHRINK_LIMIT_MB = 200  # auto-shrink only if image is within this margin
+
+
+def shrink_image(image_path):
+    """
+    Shrink the last ext partition of image_path to minimum size, then truncate
+    the file.  Modifies the image in-place.  No confirmation prompt.
+    """
+    import json as _json
+    import tempfile
+
+    orig_size = os.path.getsize(image_path)
+    print(f"\n  [Shrink] Original size: {orig_size/1e9:.3f} GB")
+
+    # Attach loop device with partition detection
+    r = run_sudo(f"losetup -f --show -P {image_path}")
+    loop_dev = r.stdout.strip()
+    print(f"  [Shrink] Loop device: {loop_dev}")
+
+    new_image_size = None
+    try:
+        # Find last partition
+        r = run(f"lsblk -ln -o NAME,TYPE {loop_dev}")
+        parts = [line.split()[0] for line in r.stdout.splitlines()
+                 if len(line.split()) >= 2 and line.split()[1] == 'part']
+        if not parts:
+            raise RuntimeError("No partitions found in image")
+        last_part = f"/dev/{parts[-1]}"
+
+        run_sudo(f"partprobe {loop_dev}", check=False)
+        r = run_sudo(f"blkid -s TYPE -o value {last_part}", check=False)
+        fs_type = r.stdout.strip()
+        if not fs_type.startswith('ext'):
+            raise RuntimeError(f"Last partition is '{fs_type}' — only ext2/3/4 supported")
+        print(f"  [Shrink] Shrinking {last_part} ({fs_type})...")
+
+        # Shrink filesystem to minimum
+        # e2fsck exit code 1 = errors corrected (normal), >=4 = real failure
+        r = run_sudo(f"e2fsck -f -y {last_part}", check=False)
+        if r.returncode >= 4:
+            raise RuntimeError(f"e2fsck failed (exit {r.returncode}): {r.stderr.strip()}")
+        run_sudo(f"resize2fs -M {last_part}")
+
+        # Get partition start and new filesystem size
+        r = run_sudo(f"sfdisk -J {loop_dev}")
+        disk_info = _json.loads(r.stdout)
+        sector_size = disk_info['partitiontable'].get('sectorsize', 512)
+        all_parts = disk_info['partitiontable']['partitions']
+        part_entry = next((p for p in all_parts if p['node'] == last_part), all_parts[-1])
+        part_start = part_entry['start']
+
+        r = run_sudo(f"tune2fs -l {last_part}")
+        block_count = block_size = 0
+        for line in r.stdout.splitlines():
+            if line.startswith('Block count:'):
+                block_count = int(line.split(':')[1].strip())
+            elif line.startswith('Block size:'):
+                block_size = int(line.split(':')[1].strip())
+        new_part_sectors = (block_count * block_size + sector_size - 1) // sector_size
+        new_image_size = (part_start + new_part_sectors) * sector_size
+
+        # Update partition table via temp sfdisk script
+        script_lines = []
+        for p in all_parts:
+            sz = new_part_sectors if p['node'] == last_part else p['size']
+            script_lines.append(
+                f"{p['node']} : start={p['start']}, size={sz}, type={p.get('type', '83')}"
+            )
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.sfdisk', delete=False) as f:
+            f.write('\n'.join(script_lines) + '\n')
+            tmpfile = f.name
+        run_sudo(f"sfdisk --no-reread {loop_dev} < {tmpfile}", check=False)
+        os.unlink(tmpfile)
+
+    finally:
+        run_sudo(f"losetup -d {loop_dev}", check=False)
+
+    if new_image_size is None:
+        raise RuntimeError("Shrink failed, image not modified")
+
+    run(f"truncate -s {new_image_size} {image_path}")
+    final_size = os.path.getsize(image_path)
+    print(f"  [Shrink] Done: {orig_size/1e9:.3f} GB → {final_size/1e9:.3f} GB  "
+          f"(saved {(orig_size - final_size)/1e6:.1f} MB)")
+
+
+def prepare_device(device, image_path):
+    """Check card capacity (auto-shrink if needed), then wipe partition signatures"""
+    image_size_bytes = os.path.getsize(image_path)
+    result = run(f"lsblk -b -o NAME,SIZE -dn {device}", check=False)
+    card_size_bytes = 0
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            try:
+                card_size_bytes = int(parts[1])
+            except ValueError:
+                pass
+
+    if card_size_bytes > 0 and card_size_bytes < image_size_bytes:
+        shortage_mb = (image_size_bytes - card_size_bytes) / (1024 * 1024)
+        if shortage_mb > AUTO_SHRINK_LIMIT_MB:
+            raise RuntimeError(
+                f"SD card too small! Image: {image_size_bytes/1e9:.3f} GB, "
+                f"Card: {card_size_bytes/1e9:.3f} GB "
+                f"(short by {shortage_mb:.1f} MB). Use a larger card."
+            )
+        print(f"\n  [Auto-shrink] Image is {shortage_mb:.1f} MB larger than card — shrinking image...")
+        shrink_image(image_path)
+
+    # Wipe partition signatures
+    print(f"\n  [Prepare] Wiping partition signatures on {device}...")
+    result = run_sudo(f"wipefs -a {device}", check=False)
+    if result.returncode != 0:
+        err = result.stderr.strip()
+        raise RuntimeError(f"wipefs failed (device may be read-only or in use): {err}")
+    print(f"  ✓ Device cleared, ready to flash")
+
+
 def flash_image(device, image_path):
     """Flash image to SD card with progress counter"""
     import threading
@@ -232,6 +351,8 @@ def flash_image(device, image_path):
 
     if result.returncode != 0:
         print(f"\n  ✗ Flash FAILED (return code: {result.returncode})")
+        if result.stderr:
+            print(f"  [dd error] {result.stderr.strip()}")
         raise RuntimeError(f"dd failed with return code: {result.returncode}")
 
     run_sudo("sync")
@@ -434,6 +555,33 @@ def generate_report(sd_info, image_path, success, error_msg=None):
     print("=" * 55)
     print(f"\n  HTML Report saved: {report_path}")
 
+    # Save results to shared test08 combined data file
+    import json as _json
+    _data_path = os.path.join(report_dir, 'test08_combined_data.json')
+    _test08 = {}
+    if os.path.exists(_data_path):
+        try:
+            with open(_data_path) as _f:
+                _test08 = _json.load(_f)
+        except Exception:
+            pass
+    _test08['test0802'] = {
+        'status': 'PASS' if success else 'FAIL',
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'image_path': str(image_path),
+        'sd_device': sd_info.get('device', 'N/A'),
+        'sd_capacity': sd_info.get('capacity', 'N/A'),
+        'sd_name': sd_info.get('name', 'N/A'),
+        'sd_serial': sd_info.get('serial', 'N/A'),
+        'sd_vendor': sd_info.get('vendor', sd_info.get('manfid', 'N/A')),
+        'error_msg': error_msg or ''
+    }
+    try:
+        with open(_data_path, 'w') as _f:
+            _json.dump(_test08, _f, indent=2)
+    except Exception as _e:
+        print(f"  [Warning] Could not save test08 combined data: {_e}")
+
     return report_path
 
 
@@ -478,6 +626,7 @@ def main():
     error_msg = None
     start_sector = None
     try:
+        prepare_device(selected["device"], image_path)
         flash_image(selected["device"], image_path)
         start_sector = write_card_identity(selected["device"], image_path)
         read_card_identity(selected["device"], start_sector)
@@ -516,6 +665,28 @@ def read_mode():
     image_size_bytes = os.path.getsize(image_path)
     start_sector = image_size_bytes // 512
     read_card_identity(device, start_sector)
+
+
+def shrink_mode():
+    """--shrink: manually shrink image with confirmation prompt"""
+    image_path = get_image_path()
+    if not os.path.exists(image_path):
+        print(f"[Error] Image not found: {image_path}")
+        sys.exit(1)
+
+    orig_size = os.path.getsize(image_path)
+    print("=" * 55)
+    print("  SD Image Shrinker")
+    print("=" * 55)
+    print(f"\n  Image : {image_path}")
+    print(f"  Size  : {orig_size / (1024**3):.3f} GB ({orig_size} bytes)")
+    print("\n  [!] This modifies the image file in-place.")
+    confirm = input("  Proceed? [yes/N]: ")
+    if confirm.strip().lower() != "yes":
+        print("  Cancelled.")
+        sys.exit(0)
+
+    shrink_image(image_path)
 
 
 if __name__ == "__main__":

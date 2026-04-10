@@ -146,7 +146,7 @@ TEST_ITEMS = [
     {
         'id': 'test052',
         'name': 'Test052: I2C Sensor Information',
-        'report_base': 'Test052_I2C_Sensor_Info',
+        'report_base': 'Test05_I2C_Device_report',
         'rp_key': 'item052'
     },
     {
@@ -162,16 +162,10 @@ TEST_ITEMS = [
         'rp_key': 'item07'
     },
     {
-        'id': 'test0802',
-        'name': 'Test0802: SD Card Flash',
-        'report_base': 'Test0802_SD_Flash_report',  # Uses _P.html or _F.html suffix
-        'rp_key': 'item0802'
-    },
-    {
-        'id': 'test0803',
-        'name': 'Test0803: CTS FEMB Checkout',
-        'report_base': 'Test0803_CTS_Checkout_report',  # Uses _P.html or _F.html suffix
-        'rp_key': 'item0803'
+        'id': 'test08_combined',
+        'name': 'Test08: SSH Setup / SD Card Flash / CTS Checkout',
+        'report_base': 'Test08_Combined_report',  # Uses _P.html or _F.html suffix
+        'rp_key': 'item08'
     }
 ]
 
@@ -757,11 +751,10 @@ def fin_rep(item=1, status=True):
         43: ('item043', 'WIB FEMB Pulse Slot 2'),
         44: ('item044', 'WIB FEMB Pulse Slot 3'),
         51: ('item051', 'I2C Device Search'),
-        52: ('item052', 'I2C Sensor Info'),
+        52: ('item052', 'I2C Sensor Information'),
         6: ('item06', 'PTB Interface'),
         7: ('item07', 'IBERT'),
-        802: ('item0802', 'SD Card Flash'),
-        803: ('item0803', 'CTS FEMB Checkout')
+        8: ('item08', 'SSH Setup / SD Card Flash / CTS Checkout')
     }
 
     if item in status_map:
@@ -775,7 +768,7 @@ def fin_rep(item=1, status=True):
 
 if __name__ == "__main__":
     # Set default test statuses (for testing)
-    for item in [1, 2, 31, 32, 33, 34, 41, 42, 43, 44, 51, 52, 6, 7]:
+    for item in [1, 2, 31, 32, 33, 34, 41, 42, 43, 44, 51, 52, 6, 7, 8]:
         fin_rep(item=item, status=True)
 
     # Generate final report

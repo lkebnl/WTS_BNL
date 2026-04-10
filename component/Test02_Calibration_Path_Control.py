@@ -205,9 +205,8 @@ SLOT_NAMES = ["SLOT0", "SLOT1", "SLOT2", "SLOT3"]
 # VALIDATION FUNCTIONS
 # ============================================================================
 def validate_power(voltage, current, channel):
-    """Validate power measurements and show troubleshooting if failed"""
+    """Validate power voltage for a single channel. Current is validated combined (see call sites)."""
     v_ok = 11.0 <= voltage <= 13.0
-    c_ok = 0.5 <= current <= 3.0
 
     if not v_ok:
         if voltage < 11.0:
@@ -219,17 +218,8 @@ def validate_power(voltage, current, channel):
     else:
         print_pass(f"  ✓ CH{channel} Voltage PASS: {voltage:.3f}V")
 
-    if not c_ok:
-        if current < 0.5:
-            print_fail(f"  ✗ CH{channel} Current FAIL: {current:.3f}A (< 0.5A)")
-            print(TROUBLESHOOT["current_low"])
-        else:
-            print_fail(f"  ✗ CH{channel} Current FAIL: {current:.3f}A (> 3.0A)")
-            print(TROUBLESHOOT["current_high"])
-    else:
-        print_pass(f"  ✓ CH{channel} Current PASS: {current:.3f}A")
-
-    return v_ok and c_ok
+    # print_info(f"  CH{channel} Current: {current:.3f}A")
+    return v_ok
 
 def validate_adc_test(slot_values, test_name, min_v, max_v, troubleshoot_key):
     """Validate ADC readback values and show troubleshooting if failed"""
@@ -308,8 +298,13 @@ print(f"Initial Power - Ch1: {v1_start:.3f}V {c1_start:.3f}A, Ch2: {v2_start:.3f
 # Validate initial power
 ch1_ok = validate_power(v1_start, c1_start, 1)
 ch2_ok = validate_power(v2_start, c2_start, 2)
+total_start_ok = 1.1 <= (c1_start + c2_start) <= 1.9
+if total_start_ok:
+    print_pass(f"  ✓ Total Current PASS: {c1_start + c2_start:.3f}A (Ch1: {c1_start:.3f}A + Ch2: {c2_start:.3f}A)")
+else:
+    print_fail(f"  ✗ Total Current FAIL: {c1_start + c2_start:.3f}A (Ch1: {c1_start:.3f}A + Ch2: {c2_start:.3f}A, expected 1.1-1.9A)")
 
-if not (ch1_ok and ch2_ok):
+if not (ch1_ok and ch2_ok and total_start_ok):
     choice = retry_prompt("Initial Power Check")
     if choice == 'E':
         print_fail("Test aborted by user.")
@@ -330,15 +325,14 @@ rp_dict.log05_Cal['power_ch2_current_start'] = round(c2_start, 3)
 # Update CSV with initial power measurements
 if rp_dict.csv_manager:
     v1_status = "PASS" if 11.0 <= v1_start <= 13.0 else "FAIL"
-    c1_status = "PASS" if 0.5 <= c1_start <= 3.0 else "FAIL"
     v2_status = "PASS" if 11.0 <= v2_start <= 13.0 else "FAIL"
-    c2_status = "PASS" if 0.5 <= c2_start <= 3.0 else "FAIL"
+    total_start_status = "PASS" if 1.1 <= (c1_start + c2_start) <= 1.9 else "FAIL"
 
     rp_dict.csv_manager.batch_update([
         {"item_id": "T02_01", "value": round(v1_start, 3), "status": v1_status},
-        {"item_id": "T02_02", "value": round(c1_start, 3), "status": c1_status},
+        {"item_id": "T02_02", "value": round(c1_start, 3), "status": total_start_status},
         {"item_id": "T02_03", "value": round(v2_start, 3), "status": v2_status},
-        {"item_id": "T02_04", "value": round(c2_start, 3), "status": c2_status}
+        {"item_id": "T02_04", "value": round(c2_start, 3), "status": total_start_status}
     ])
 
 time.sleep(20)
@@ -621,8 +615,8 @@ while True:
     print_header("[Step 6] Test t4: LEMO P5 Injection Test")
     if first_t4_attempt:
         pop.show_image_popup(
-            title="Page 7: Test P5",
-            image_path=os.path.join(IMG_DIR, "7.png") if os.path.exists(os.path.join(IMG_DIR, "7.png")) else None
+            title="Page 9: Test P5",
+            image_path=os.path.join(IMG_DIR, "9.png") if os.path.exists(os.path.join(IMG_DIR, "9.png")) else None
         )
         first_t4_attempt = False
 
@@ -673,8 +667,8 @@ while True:
     print_header("[Step 7] Test t5/t6: Test Points (Floating)")
     if first_t5_attempt:
         pop.show_image_popup(
-            title="Page 8: Test Float Voltage",
-            image_path=os.path.join(IMG_DIR, "8.png") if os.path.exists(os.path.join(IMG_DIR, "8.png")) else None
+            title="Page 10: Test Float Voltage",
+            image_path=os.path.join(IMG_DIR, "10.png") if os.path.exists(os.path.join(IMG_DIR, "10.png")) else None
         )
         first_t5_attempt = False
 
@@ -730,6 +724,11 @@ print(f"Final Power - Ch1: {v1_end:.3f}V {c1_end:.3f}A, Ch2: {v2_end:.3f}V {c2_e
 # Validate final power
 ch1_end_ok = validate_power(v1_end, c1_end, 1)
 ch2_end_ok = validate_power(v2_end, c2_end, 2)
+total_end_ok = 1.1 <= (c1_end + c2_end) <= 1.9
+if total_end_ok:
+    print_pass(f"  ✓ Total Current PASS: {c1_end + c2_end:.3f}A (Ch1: {c1_end:.3f}A + Ch2: {c2_end:.3f}A)")
+else:
+    print_fail(f"  ✗ Total Current FAIL: {c1_end + c2_end:.3f}A (Ch1: {c1_end:.3f}A + Ch2: {c2_end:.3f}A, expected 1.1-1.9A)")
 
 # Record final power measurements
 rp_dict.log05_Cal['power_ch1_voltage_end'] = round(v1_end, 3)
@@ -787,15 +786,14 @@ print(f"  Total Power: {total_power:.3f} W")
 # Update CSV with final power measurements and test duration
 if rp_dict.csv_manager:
     v1_end_status = "PASS" if 11.0 <= v1_end <= 13.0 else "FAIL"
-    c1_end_status = "PASS" if 0.5 <= c1_end <= 3.0 else "FAIL"
     v2_end_status = "PASS" if 11.0 <= v2_end <= 13.0 else "FAIL"
-    c2_end_status = "PASS" if 0.5 <= c2_end <= 3.0 else "FAIL"
+    total_end_status = "PASS" if 1.1 <= (c1_end + c2_end) <= 1.9 else "FAIL"
 
     rp_dict.csv_manager.batch_update([
         {"item_id": "T02_13", "value": round(v1_end, 3), "status": v1_end_status},
-        {"item_id": "T02_14", "value": round(c1_end, 3), "status": c1_end_status},
+        {"item_id": "T02_14", "value": round(c1_end, 3), "status": total_end_status},
         {"item_id": "T02_15", "value": round(v2_end, 3), "status": v2_end_status},
-        {"item_id": "T02_16", "value": round(c2_end, 3), "status": c2_end_status},
+        {"item_id": "T02_16", "value": round(c2_end, 3), "status": total_end_status},
         {"item_id": "T02_17", "value": round(total_power, 3), "status": "PASS"},
         {"item_id": "T02_18", "value": test_duration, "status": "COMPLETE"}
     ])
@@ -863,9 +861,7 @@ ch2_current = cal.get('power_ch2_current_end', 0)
 total_power = cal.get('total_power', 0)
 
 power_passed = True
-if not (0.5 <= ch1_current <= 3.0):
-    power_passed = False
-if not (0.5 <= ch2_current <= 3.0):
+if not (1.1 <= (ch1_current + ch2_current) <= 1.9):
     power_passed = False
 if not (4.0 <= total_power <= 30.0):
     power_passed = False
@@ -1088,8 +1084,8 @@ html_content = f"""<!DOCTYPE html>
                         <td>{cal.get('power_ch1_voltage_end', 0):.3f} V</td>
                         <td>{cal.get('power_ch1_current_end', 0):.3f} A</td>
                         <td>{(cal.get('power_ch1_voltage_end', 0) * cal.get('power_ch1_current_end', 0)):.3f} W</td>
-                        <td class="status-cell status-{'pass' if 0.5 <= cal.get('power_ch1_current_end', 0) <= 3.0 else 'fail'}">
-                            {'PASS' if 0.5 <= cal.get('power_ch1_current_end', 0) <= 3.0 else 'FAIL'}
+                        <td class="status-cell status-{'pass' if 11.0 <= cal.get('power_ch1_voltage_end', 0) <= 13.0 else 'fail'}">
+                            {'PASS' if 11.0 <= cal.get('power_ch1_voltage_end', 0) <= 13.0 else 'FAIL'}
                         </td>
                     </tr>
                     <tr>
@@ -1097,8 +1093,17 @@ html_content = f"""<!DOCTYPE html>
                         <td>{cal.get('power_ch2_voltage_end', 0):.3f} V</td>
                         <td>{cal.get('power_ch2_current_end', 0):.3f} A</td>
                         <td>{(cal.get('power_ch2_voltage_end', 0) * cal.get('power_ch2_current_end', 0)):.3f} W</td>
-                        <td class="status-cell status-{'pass' if 0.5 <= cal.get('power_ch2_current_end', 0) <= 3.0 else 'fail'}">
-                            {'PASS' if 0.5 <= cal.get('power_ch2_current_end', 0) <= 3.0 else 'FAIL'}
+                        <td class="status-cell status-{'pass' if 11.0 <= cal.get('power_ch2_voltage_end', 0) <= 13.0 else 'fail'}">
+                            {'PASS' if 11.0 <= cal.get('power_ch2_voltage_end', 0) <= 13.0 else 'FAIL'}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Current</strong></td>
+                        <td>—</td>
+                        <td>{cal.get('power_ch1_current_end', 0) + cal.get('power_ch2_current_end', 0):.3f} A</td>
+                        <td>—</td>
+                        <td class="status-cell status-{'pass' if 1.1 <= cal.get('power_ch1_current_end', 0) + cal.get('power_ch2_current_end', 0) <= 1.9 else 'fail'}">
+                            {'PASS' if 1.1 <= cal.get('power_ch1_current_end', 0) + cal.get('power_ch2_current_end', 0) <= 1.9 else 'FAIL'}
                         </td>
                     </tr>
                     <tr style="background-color: #f3f4f6; font-weight: bold;">
@@ -1112,7 +1117,7 @@ html_content = f"""<!DOCTYPE html>
                 </tbody>
             </table>
             <div class="test-description">
-                <strong>Note:</strong> Power measurements taken at test completion. Expected current range: 0.5-3.0A per channel. Total power range: 4.0-30.0W.
+                <strong>Note:</strong> Power measurements taken at test completion. Expected voltage: 11.0-13.0V per channel. Expected total current (Ch1+Ch2): 1.1-1.9A.
             </div>
         </div>
 

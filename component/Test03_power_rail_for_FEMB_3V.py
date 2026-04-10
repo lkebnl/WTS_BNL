@@ -74,15 +74,14 @@ rp_dict.log03_femb_slot0['wib_c2'] = round(c2_wib, 3)
 # Update CSV with WIB power measurements
 if rp_dict.csv_manager:
     v1_status = "PASS" if 11.0 <= v1_wib <= 13.0 else "FAIL"
-    c1_status = "PASS" if 0.5 <= c1_wib <= 3.0 else "FAIL"
     v2_status = "PASS" if 11.0 <= v2_wib <= 13.0 else "FAIL"
-    c2_status = "PASS" if 0.5 <= c2_wib <= 3.0 else "FAIL"
+    total_c_status = "PASS" if 1.1 <= (c1_wib + c2_wib) <= 1.9 else "FAIL"
 
     rp_dict.csv_manager.batch_update([
         {"item_id": "T03_3V_00", "value": round(v1_wib, 3), "status": v1_status},
-        {"item_id": "T03_3V_01", "value": round(c1_wib, 3), "status": c1_status},
+        {"item_id": "T03_3V_01", "value": round(c1_wib, 3), "status": total_c_status},
         {"item_id": "T03_3V_02", "value": round(v2_wib, 3), "status": v2_status},
-        {"item_id": "T03_3V_03", "value": round(c2_wib, 3), "status": c2_status}
+        {"item_id": "T03_3V_03", "value": round(c2_wib, 3), "status": total_c_status}
     ])
 
 time.sleep(1)
@@ -368,8 +367,8 @@ wib_v1 = rp_dict.log03_femb_slot0.get('wib_v1', 0)
 wib_c1 = rp_dict.log03_femb_slot0.get('wib_c1', 0)
 wib_v2 = rp_dict.log03_femb_slot0.get('wib_v2', 0)
 wib_c2 = rp_dict.log03_femb_slot0.get('wib_c2', 0)
-wib_power_ok = (11.0 <= wib_v1 <= 13.0 and 0.5 <= wib_c1 <= 3.0 and
-                11.0 <= wib_v2 <= 13.0 and 0.5 <= wib_c2 <= 3.0)
+wib_power_ok = (11.0 <= wib_v1 <= 13.0 and 11.0 <= wib_v2 <= 13.0 and
+                1.1 <= (wib_c1 + wib_c2) <= 1.9)
 
 if wib_power_ok:
     print_pass(f"    [PASS] WIB Power Supply")

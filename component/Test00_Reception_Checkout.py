@@ -120,18 +120,21 @@ time.sleep(3)
 psu.safe_power_off()
 psu.close()
 
-rp_dict.log01_wib['Power Check channel 1'] = c1
-rp_dict.log01_wib['Power Check channel 2'] = c2
+total_current = c1 + c2
+power_status = "PASS" if (10.8 <= v1 <= 13.2 and 10.8 <= v2 <= 13.2 and 1.1 <= total_current <= 1.9) else "FAIL"
+rp_dict.log01_wib['Power Check voltage_ch1'] = v1
+rp_dict.log01_wib['Power Check voltage_ch2'] = v2
+rp_dict.log01_wib['Power Check total_current'] = total_current
+rp_dict.log01_wib['power_status'] = power_status
 utc_time = datetime.now(timezone.utc)
 rp_dict.log01_wib['Power Check Date'] = utc_time.strftime("%Y-%m-%d %H:%M:%S UTC")
 
-# Update CSV with power measurements
-c1_status = "PASS" if 0.5 <= c1 <= 2.0 else "FAIL"
-c2_status = "PASS" if 0.5 <= c2 <= 2.0 else "FAIL"
-rp_dict.csv_manager.batch_update([
-    {"item_id": "T00_03", "value": round(c1, 3), "status": c1_status},
-    {"item_id": "T00_04", "value": round(c2, 3), "status": c2_status}
-])
+# Update CSV with combined power measurement
+rp_dict.csv_manager.update_item(
+    "T00_03",
+    f"V1={round(v1, 2)}V V2={round(v2, 2)}V I_total={round(total_current, 3)}A",
+    status=power_status
+)
 
 item3 = input('Install Front Panel').strip().lower()
 if item3 == 'n':
@@ -176,7 +179,8 @@ import os
 all_tests_passed = all([
     rp_dict.log01_wib["Component Inspection"] == "Passed",
     rp_dict.log01_wib["LTpowerPlay"] == "Passed",
-    rp_dict.log01_wib["Front_Panel"] == "Passed"
+    rp_dict.log01_wib["Front_Panel"] == "Passed",
+    rp_dict.log01_wib["power_status"] == "PASS"
 ])
 overall_status = "PASS" if all_tests_passed else "FAIL"
 
@@ -461,7 +465,7 @@ html_content = f"""<!DOCTYPE html>
                     <tr>
                         <td><strong>3</strong></td>
                         <td>Initial Power Check</td>
-                        <td class="status-cell status-pass">Completed</td>
+                        <td class="status-cell status-{rp_dict.log01_wib['power_status'].lower()}">{rp_dict.log01_wib['power_status']}</td>
                         <td>{rp_dict.log01_wib["Power Check Date"]}</td>
                     </tr>
                     <tr>
@@ -482,27 +486,21 @@ html_content = f"""<!DOCTYPE html>
             <table class="power-table">
                 <thead>
                     <tr>
-                        <th>Channel</th>
-                        <th>Current (A)</th>
-                        <th>Expected Range</th>
+                        <th>Voltage Ch1 (V)</th>
+                        <th>Voltage Ch2 (V)</th>
+                        <th>Total Current (A)</th>
+                        <th>Expected</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td><strong>Channel 1</strong></td>
-                        <td>{rp_dict.log01_wib["Power Check channel 1"]:.3f} A</td>
-                        <td>0.5 - 2.0 A</td>
-                        <td class="status-cell status-{'pass' if 0.5 <= rp_dict.log01_wib["Power Check channel 1"] <= 2.0 else 'fail'}">
-                            {'PASS' if 0.5 <= rp_dict.log01_wib["Power Check channel 1"] <= 2.0 else 'FAIL'}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td><strong>Channel 2</strong></td>
-                        <td>{rp_dict.log01_wib["Power Check channel 2"]:.3f} A</td>
-                        <td>0.5 - 2.0 A</td>
-                        <td class="status-cell status-{'pass' if 0.5 <= rp_dict.log01_wib["Power Check channel 2"] <= 2.0 else 'fail'}">
-                            {'PASS' if 0.5 <= rp_dict.log01_wib["Power Check channel 2"] <= 2.0 else 'FAIL'}
+                        <td>{rp_dict.log01_wib["Power Check voltage_ch1"]:.2f} V</td>
+                        <td>{rp_dict.log01_wib["Power Check voltage_ch2"]:.2f} V</td>
+                        <td>{rp_dict.log01_wib["Power Check total_current"]:.3f} A</td>
+                        <td>12 V / 1.1 – 1.9 A</td>
+                        <td class="status-cell status-{rp_dict.log01_wib['power_status'].lower()}">
+                            {rp_dict.log01_wib['power_status']}
                         </td>
                     </tr>
                 </tbody>
@@ -529,9 +527,10 @@ html_content = f"""<!DOCTYPE html>
 
             <div class="details-box">
                 <div class="details-title">Step 3: Initial Power Check</div>
-                <div class="details-item">• Channel 1 Current: {rp_dict.log01_wib["Power Check channel 1"]:.3f} A</div>
-                <div class="details-item">• Channel 2 Current: {rp_dict.log01_wib["Power Check channel 2"]:.3f} A</div>
-                <div class="details-item">• Power verification completed successfully</div>
+                <div class="details-item">• Voltage Ch1: {rp_dict.log01_wib["Power Check voltage_ch1"]:.2f} V (expected ~12 V)</div>
+                <div class="details-item">• Voltage Ch2: {rp_dict.log01_wib["Power Check voltage_ch2"]:.2f} V (expected ~12 V)</div>
+                <div class="details-item">• Total Current (Ch1+Ch2): {rp_dict.log01_wib["Power Check total_current"]:.3f} A (expected 1.1 – 1.9 A)</div>
+                <div class="details-item">• Result: {rp_dict.log01_wib['power_status']}</div>
             </div>
 
             <div class="details-box">

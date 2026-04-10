@@ -15,6 +15,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import time
 import csv
+import json
 from datetime import datetime
 from colorama import init, Fore, Style
 import cts_ssh_FEMB as cts
@@ -274,16 +275,111 @@ def generate_result_summary(inform, data_path, report_path):
 
 
 def save_html_report(inform, slot_results, all_passed):
-    """Save HTML report to the WIB QC session report directory."""
+    """Generate a combined HTML report for Test0801 + Test0802 + Test0803."""
     report_dir = get_report_dir()
-    suffix = "_P" if all_passed else "_F"
-    report_path = os.path.join(report_dir, f"Test0803_CTS_Checkout_report{suffix}.html")
-
-    status_str = "PASS" if all_passed else "FAIL"
-    status_color = "#28a745" if all_passed else "#dc3545"
-    status_bg = "#d4edda" if all_passed else "#f8d7da"
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # Read shared data saved by Test0801 and Test0802
+    data_path = os.path.join(report_dir, 'test08_combined_data.json')
+    test08_data = {}
+    if os.path.exists(data_path):
+        try:
+            with open(data_path) as _f:
+                test08_data = json.load(_f)
+        except Exception:
+            pass
+
+    d0801 = test08_data.get('test0801', None)
+    d0802 = test08_data.get('test0802', None)
+
+    # Overall: all available tests must pass
+    sub_statuses = []
+    if d0801:
+        sub_statuses.append(d0801.get('status', 'FAIL') == 'PASS')
+    if d0802:
+        sub_statuses.append(d0802.get('status', 'FAIL') == 'PASS')
+    sub_statuses.append(all_passed)
+    combined_pass = all(sub_statuses)
+
+    suffix = "_P" if combined_pass else "_F"
+    report_path = os.path.join(report_dir, f"Test08_Combined_report{suffix}.html")
+
+    overall_str = "PASS" if combined_pass else "FAIL"
+    overall_color = "#28a745" if combined_pass else "#dc3545"
+    overall_bg = "#d4edda" if combined_pass else "#f8d7da"
+
+    # ── Section 0801 ─────────────────────────────────────────
+    if d0801:
+        c0801 = "#28a745" if d0801.get('status') == 'PASS' else "#dc3545"
+        s0801 = d0801.get('status', 'FAIL')
+        ok_hosts = ', '.join(d0801.get('remotes_success', [])) or 'None'
+        fail_hosts = ', '.join(d0801.get('remotes_failed', [])) or 'None'
+        sec0801 = f"""
+    <div class="section">
+        <div class="section-header" style="background:{c0801};">
+            Test0801: SSH Key Setup &mdash; {s0801}
+        </div>
+        <div class="section-body">
+            <table>
+                <tr><th>Item</th><th>Value</th></tr>
+                <tr><td>Timestamp</td><td>{d0801.get('timestamp','N/A')}</td></tr>
+                <tr><td>Result</td><td class="{'pass' if s0801=='PASS' else 'fail'}">{s0801}</td></tr>
+                <tr><td>Successful Hosts</td><td>{ok_hosts}</td></tr>
+                <tr><td>Failed Hosts</td><td>{fail_hosts}</td></tr>
+            </table>
+        </div>
+    </div>"""
+    else:
+        sec0801 = """
+    <div class="section">
+        <div class="section-header" style="background:#6c757d;">
+            Test0801: SSH Key Setup &mdash; Not Run
+        </div>
+        <div class="section-body">
+            <p class="na">This test was not run in the current session.</p>
+        </div>
+    </div>"""
+
+    # ── Section 0802 ─────────────────────────────────────────
+    if d0802:
+        c0802 = "#28a745" if d0802.get('status') == 'PASS' else "#dc3545"
+        s0802 = d0802.get('status', 'FAIL')
+        err_row = (f"<tr><td>Error</td><td class='fail'>{d0802['error_msg']}</td></tr>"
+                   if d0802.get('error_msg') else '')
+        sec0802 = f"""
+    <div class="section">
+        <div class="section-header" style="background:{c0802};">
+            Test0802: SD Card Flash &mdash; {s0802}
+        </div>
+        <div class="section-body">
+            <table>
+                <tr><th>Item</th><th>Value</th></tr>
+                <tr><td>Timestamp</td><td>{d0802.get('timestamp','N/A')}</td></tr>
+                <tr><td>Image File</td><td>{d0802.get('image_path','N/A')}</td></tr>
+                <tr><td>SD Device</td><td>{d0802.get('sd_device','N/A')}</td></tr>
+                <tr><td>Capacity</td><td>{d0802.get('sd_capacity','N/A')}</td></tr>
+                <tr><td>Product Name</td><td>{d0802.get('sd_name','N/A')}</td></tr>
+                <tr><td>Serial</td><td>{d0802.get('sd_serial','N/A')}</td></tr>
+                <tr><td>Vendor</td><td>{d0802.get('sd_vendor','N/A')}</td></tr>
+                <tr><td>Flash Result</td><td class="{'pass' if s0802=='PASS' else 'fail'}">{s0802}</td></tr>
+                {err_row}
+            </table>
+        </div>
+    </div>"""
+    else:
+        sec0802 = """
+    <div class="section">
+        <div class="section-header" style="background:#6c757d;">
+            Test0802: SD Card Flash &mdash; Not Run
+        </div>
+        <div class="section-body">
+            <p class="na">SD card flash was not performed in the current session.</p>
+        </div>
+    </div>"""
+
+    # ── Section 0803 ─────────────────────────────────────────
+    c0803 = "#28a745" if all_passed else "#dc3545"
+    s0803 = "PASS" if all_passed else "FAIL"
     slot_rows = ""
     for slot_num in ['0', '1', '2', '3']:
         femb_id = inform.get(f'SLOT{slot_num}', '')
@@ -291,60 +387,84 @@ def save_html_report(inform, slot_results, all_passed):
         if not femb_id or femb_id in ['', ' ', 'N/A', 'EMPTY', 'NONE']:
             slot_rows += f"<tr><td>Slot {display_slot}</td><td>—</td><td class='na'>Empty</td></tr>"
         else:
-            status, _ = slot_results.get(slot_num, ('no_data', ''))
-            css = 'pass' if status == 'pass' else ('fail' if status == 'fail' else 'na')
+            st, _ = slot_results.get(slot_num, ('no_data', ''))
+            css = 'pass' if st == 'pass' else ('fail' if st == 'fail' else 'na')
             slot_rows += (f"<tr><td>Slot {display_slot}</td><td>{femb_id}</td>"
-                          f"<td class='{css}'>{status.upper()}</td></tr>")
+                          f"<td class='{css}'>{st.upper()}</td></tr>")
 
+    sec0803 = f"""
+    <div class="section">
+        <div class="section-header" style="background:{c0803};">
+            Test0803: CTS FEMB Checkout &mdash; {s0803}
+        </div>
+        <div class="section-body">
+            <table>
+                <tr><th>Item</th><th>Value</th></tr>
+                <tr><td>Timestamp</td><td>{timestamp}</td></tr>
+                <tr><td>Tester</td><td>{inform.get('tester','Unknown')}</td></tr>
+                <tr><td>Test Site</td><td>{inform.get('test_site','BNL')}</td></tr>
+                <tr><td>Overall Result</td><td class="{'pass' if all_passed else 'fail'}">{s0803}</td></tr>
+            </table>
+            <h4>Slot Results</h4>
+            <table>
+                <tr><th>Slot</th><th>FEMB ID</th><th>Result</th></tr>
+                {slot_rows}
+            </table>
+        </div>
+    </div>"""
+
+    # ── Assemble full HTML ────────────────────────────────────
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Test0803 CTS Checkout Report</title>
+    <title>Test08 Combined Report</title>
     <style>
         body {{ font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; color: #333; }}
-        h2 {{ text-align: center; color: #444; }}
+        h2 {{ text-align: center; color: #444; margin-bottom: 5px; }}
         .status-banner {{
             text-align: center; padding: 15px; margin: 20px auto; width: 60%;
             border-radius: 8px; font-size: 1.2em; font-weight: bold;
-            background-color: {status_bg}; color: {status_color};
-            border: 2px solid {status_color};
+            background-color: {overall_bg}; color: {overall_color};
+            border: 2px solid {overall_color};
         }}
-        table {{ width: 60%; margin: 20px auto; border-collapse: collapse;
-                 box-shadow: 0 2px 6px rgba(0,0,0,0.1); background: #fff;
-                 border-radius: 8px; overflow: hidden; }}
-        th, td {{ border: 1px solid #ddd; padding: 10px 15px; text-align: left; }}
+        .section {{
+            margin: 25px 0; border: 1px solid #ddd; border-radius: 8px;
+            overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }}
+        .section-header {{
+            padding: 12px 20px; font-size: 1.05em;
+            font-weight: bold; color: white;
+        }}
+        .section-body {{ padding: 20px; background: #fff; }}
+        table {{ width: 70%; margin: 0 auto; border-collapse: collapse; background: #fff; }}
+        th, td {{ border: 1px solid #ddd; padding: 9px 14px; text-align: left; }}
         th {{ background-color: #f0f0f0; font-weight: bold; }}
         tr:nth-child(even) td {{ background-color: #fafafa; }}
         .pass {{ color: #28a745; font-weight: bold; }}
         .fail {{ color: #dc3545; font-weight: bold; }}
         .na   {{ color: #6c757d; }}
+        h4 {{ margin: 18px 15%; font-size: 0.95em; }}
+        p.na {{ text-align: center; color: #6c757d; padding: 20px; font-style: italic; }}
+        .footer {{ text-align: center; margin-top: 30px; color: #999; font-size: 0.85em; }}
     </style>
 </head>
 <body>
-    <h2>Test0803: CTS FEMB Checkout Report</h2>
-    <div class="status-banner">Overall Result: {status_str}</div>
-
-    <h3 style="text-align:center;">Test Information</h3>
-    <table>
-        <tr><th>Item</th><th>Value</th></tr>
-        <tr><td>Test Time</td><td>{timestamp}</td></tr>
-        <tr><td>Tester</td><td>{inform.get('tester', 'Unknown')}</td></tr>
-        <tr><td>Test Site</td><td>{inform.get('test_site', 'BNL')}</td></tr>
-        <tr><td>Overall Result</td><td class="{'pass' if all_passed else 'fail'}">{status_str}</td></tr>
-    </table>
-
-    <h3 style="text-align:center;">Slot Results</h3>
-    <table>
-        <tr><th>Slot</th><th>FEMB ID</th><th>Result</th></tr>
-        {slot_rows}
-    </table>
+    <h2>Test08: SSH Setup / SD Card Flash / CTS Checkout</h2>
+    <div class="status-banner">Overall Result: {overall_str}</div>
+    {sec0801}
+    {sec0802}
+    {sec0803}
+    <div class="footer">
+        <p>Generated: {timestamp}</p>
+        <p>Made by Lingyun Ke</p>
+    </div>
 </body>
 </html>"""
 
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"  [Report] Saved: {report_path}")
+    print(f"  [Report] Combined Test08 report saved: {report_path}")
     return report_path
 
 
@@ -536,8 +656,6 @@ def main():
         all_passed, summary_text, slot_results = generate_result_summary(inform, data_path, report_path)
         save_html_report(inform, slot_results, all_passed)
         send_result_email(tester_email, all_passed, summary_text, inform)
-        print_status('info', "Turning OFF power supply...")
-        psu.close()
         # Show Page 9: Open cover for board removal
         # pop.show_image_popup(
         #     title="Page 9: Review Result and Open Cover",
@@ -566,9 +684,13 @@ def main():
         return 0 if all_passed else 1
 
     finally:
-        # Always turn off power supply, even on exceptions
-        input(Fore.CYAN + "  Press Enter to next" + Style.RESET_ALL)
-        print(Fore.CYAN + "  Press Enter 'exit' in terminal line to quit..." + Style.RESET_ALL)
+        # Always power off, even on exceptions
+        print_status('info', "Powering OFF WIB...")
+        try:
+            psu.safe_power_off()
+            psu.close()
+        except Exception as _e:
+            print_status('warning', f"Power off error: {_e}")
 
 
 if __name__ == "__main__":

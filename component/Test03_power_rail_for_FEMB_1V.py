@@ -164,9 +164,8 @@ SLOT_NAMES = ["SLOT0", "SLOT1", "SLOT2", "SLOT3"]
 # VALIDATION FUNCTIONS
 # ============================================================================
 def validate_wib_power(voltage, current, channel):
-    """Validate WIB power measurements and show troubleshooting if failed"""
+    """Validate WIB power voltage for a single channel. Current is validated combined (see call sites)."""
     v_ok = 11.0 <= voltage <= 13.0
-    c_ok = 0.5 <= current <= 3.0
 
     if not v_ok:
         if voltage < 11.0:
@@ -178,17 +177,8 @@ def validate_wib_power(voltage, current, channel):
     else:
         print_pass(f"  ✓ CH{channel} Voltage PASS: {voltage:.3f}V")
 
-    if not c_ok:
-        if current < 0.5:
-            print_fail(f"  ✗ CH{channel} Current FAIL: {current:.3f}A (< 0.5A)")
-            print(TROUBLESHOOT["wib_current_low"])
-        else:
-            print_fail(f"  ✗ CH{channel} Current FAIL: {current:.3f}A (> 3.0A)")
-            print(TROUBLESHOOT["wib_current_high"])
-    else:
-        print_pass(f"  ✓ CH{channel} Current PASS: {current:.3f}A")
-
-    return v_ok and c_ok
+    print_info(f"  CH{channel} Current: {current:.3f}A")
+    return v_ok
 
 def validate_femb_rail(slot_idx, rail_name, v_set, v_meas, i_meas):
     """Validate FEMB power rail and show troubleshooting if failed"""
@@ -240,7 +230,7 @@ print(f"  Tester:      {tester}")
 print(f"  Test Site:   {test_site}")
 print("-" * 40)
 
-print_header("A_RT03_01 : FEMB Power Rail Test (1V)")
+# print_header("A_RT03_01 : FEMB Power Rail Test (1V)")
 print("Testing 4 FEMB slots with 5 power rails each")
 print("Power rails: FE, CD, ADC, IDLE, BIAS")
 
@@ -270,15 +260,14 @@ rp_dict.log03_femb_slot0['wib_c2'] = round(c2_wib, 3)
 # Update CSV with WIB power measurements
 if rp_dict.csv_manager:
     v1_status = "PASS" if 11.0 <= v1_wib <= 13.0 else "FAIL"
-    c1_status = "PASS" if 0.5 <= c1_wib <= 3.0 else "FAIL"
     v2_status = "PASS" if 11.0 <= v2_wib <= 13.0 else "FAIL"
-    c2_status = "PASS" if 0.5 <= c2_wib <= 3.0 else "FAIL"
+    total_c_status = "PASS" if 1.1 <= (c1_wib + c2_wib) <= 1.9 else "FAIL"
 
     rp_dict.csv_manager.batch_update([
         {"item_id": "T03_1V_00", "value": round(v1_wib, 3), "status": v1_status},
-        {"item_id": "T03_1V_01", "value": round(c1_wib, 3), "status": c1_status},
+        {"item_id": "T03_1V_01", "value": round(c1_wib, 3), "status": total_c_status},
         {"item_id": "T03_1V_02", "value": round(v2_wib, 3), "status": v2_status},
-        {"item_id": "T03_1V_03", "value": round(c2_wib, 3), "status": c2_status}
+        {"item_id": "T03_1V_03", "value": round(c2_wib, 3), "status": total_c_status}
     ])
 
 time.sleep(1)
@@ -565,8 +554,8 @@ wib_v1 = rp_dict.log03_femb_slot0.get('wib_v1', 0)
 wib_c1 = rp_dict.log03_femb_slot0.get('wib_c1', 0)
 wib_v2 = rp_dict.log03_femb_slot0.get('wib_v2', 0)
 wib_c2 = rp_dict.log03_femb_slot0.get('wib_c2', 0)
-wib_power_ok = (11.0 <= wib_v1 <= 13.0 and 0.5 <= wib_c1 <= 3.0 and
-                11.0 <= wib_v2 <= 13.0 and 0.5 <= wib_c2 <= 3.0)
+wib_power_ok = (11.0 <= wib_v1 <= 13.0 and 11.0 <= wib_v2 <= 13.0 and
+                1.1 <= (wib_c1 + wib_c2) <= 1.9)
 
 if wib_power_ok:
     print_pass(f"    [PASS] WIB Power Supply")

@@ -167,7 +167,7 @@ udp = CLS_UDP()
 conv = RAW_CONV()
 now = datetime.now()
 
-print("\033[35m" + "A_RT03_01 : Power Rail" + "\033[0m")
+# print("\033[35m" + "A_RT03_01 : Power Rail" + "\033[0m")
 t1 = time.time()
 psu = rigol.RigolDP800()
 

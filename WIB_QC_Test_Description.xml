@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    DUNE WIB Quality Control System — Test Description
+    Developer  : lke, cde
+    Email      : lingyun.lke@gmail.com
+    Date       : April 2026
+    Institute  : BNL (Brookhaven National Laboratory)
+    Repository : Public
+    Copyright  : © 2026 Lingyun Ke. All rights reserved.
+-->
+
+<WIB_QC_System version="2026.04" site="BNL">
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SYSTEM OVERVIEW
+    ═══════════════════════════════════════════════════════════ -->
+    <Overview>
+        <Name>DUNE WIB (Warm Interface Board) Quality Control System</Name>
+        <EntryPoint>WIB_QC_Detail.py</EntryPoint>
+        <Language>Python 3</Language>
+        <Hardware>
+            <Item>WIB board under test</Item>
+            <Item>Rigol DP800 series PSU (2 channels, 12V/3A each)</Item>
+            <Item>FEMB test boards (up to 4 slots)</Item>
+            <Item>SD card (production firmware image)</Item>
+            <Item>SFP modules</Item>
+            <Item>CTS (Cold Test Stand) for FEMB checkout</Item>
+        </Hardware>
+        <Infrastructure>
+            <WIB_IP>192.168.121.1</WIB_IP>
+            <WIB_IP_2>192.168.121.2</WIB_IP_2>
+            <I2C_Bus>0</I2C_Bus>
+            <Telnet_Port>23</Telnet_Port>
+            <PSU_Interface>USB/VISA (Rigol DP800)</PSU_Interface>
+        </Infrastructure>
+    </Overview>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SESSION AND CONFIGURATION
+    ═══════════════════════════════════════════════════════════ -->
+    <Session>
+        <ConfigFile>file/wib_info.csv</ConfigFile>
+        <ConfigFields>
+            <Field name="WIB_ID"        description="Board serial number scanned at start"/>
+            <Field name="tester"         description="Tester name entered at start"/>
+            <Field name="test_site"      description="Test location (e.g. BNL, FNAL)"/>
+            <Field name="Foam_Box_ID"    description="Foam box barcode scanned at start"/>
+            <Field name="SUDO_PASSWORD"  description="Linux sudo password for dd commands"/>
+            <Field name="SD_IMAGE_PATH"  description="Path to production SD card image file"/>
+            <Field name="comment"        description="Free-text comment for this session"/>
+        </ConfigFields>
+        <ReportDirectory>
+            <Location>Auto-created per session under report/ folder</Location>
+            <NamingConvention>{WIB_ID}_{timestamp}/</NamingConvention>
+            <ManagedBy>function/report_path.py — init_session()</ManagedBy>
+            <SessionMetadata>function/session_info.py — init_session_info()</SessionMetadata>
+        </ReportDirectory>
+        <Watchdog>
+            <Script>function/watchdog.py</Script>
+            <HeartbeatFile>/tmp/wib_qc_heartbeat.json</HeartbeatFile>
+            <HeartbeatUtil>function/heartbeat.py</HeartbeatUtil>
+            <CheckInterval_sec>30</CheckInterval_sec>
+            <DefaultTimeout_min>7</DefaultTimeout_min>
+            <IBERTTimeout_min>20</IBERTTimeout_min>
+            <Behavior>
+                Sends alert email to tester if a test exceeds its timeout.
+                Alerts once per test item (no spam). Exits cleanly on DONE signal.
+            </Behavior>
+        </Watchdog>
+        <EmailNotification>
+            <SenderEmail>bnlr216@gmail.com</SenderEmail>
+            <TriggerEvents>
+                <Event>Watchdog timeout (process stuck)</Event>
+                <Event>All tests complete (summary)</Event>
+            </TriggerEvents>
+            <TesterEmailRequired>true — double-confirmed at session start</TesterEmailRequired>
+        </EmailNotification>
+    </Session>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         TEST FLOW (execution order)
+    ═══════════════════════════════════════════════════════════ -->
+    <TestFlow>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="0" id="INIT" type="GUI_Setup">
+            <Name>Session Initialization</Name>
+            <Script>WIB_QC_Detail.py (top section)</Script>
+            <Actions>
+                <Action>Tester enters name</Action>
+                <Action>Tester enters and double-confirms email address</Action>
+                <Action>GUI popup: Page 1 — QC Test Preparation</Action>
+                <Action>GUI popup: Page 2 — ESD Preparation</Action>
+                <Action>GUI dual-input popup: scan Foam Box ID and WIB ID (double-check required)</Action>
+                <Action>Write session data to file/wib_info.csv</Action>
+                <Action>Initialize report session directory</Action>
+                <Action>Initialize session metadata (wib_id, tester, site, foam_box_id)</Action>
+                <Action>GUI popup: Page 4 — Install WIB into test slot</Action>
+                <Action>GUI popup: Page 5 — Insert SFP module and SD card</Action>
+                <Action>GUI popup: Page 6,7,8 — Insert test cables into FEMB slots</Action>
+            </Actions>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="1" id="SD_FLASH" type="Manual_Action">
+            <Name>SD Card Flash (Test0802)</Name>
+            <Script>component/Test0802_SD_image.py</Script>
+            <GUIPopup>Page 9 — Remove Cables and SD Card</GUIPopup>
+            <ActionButton>Flash SD Card (re-runnable — tester can retry)</ActionButton>
+            <Timeout_min>7</Timeout_min>
+            <Process>
+                <Step>Read SD_IMAGE_PATH and SUDO_PASSWORD from wib_info.csv</Step>
+                <Step>Auto-detect SD card device (largest removable block device)</Step>
+                <Step>Unmount all partitions on device</Step>
+                <Step>Flash image using dd (bs=4M, conv=fsync)</Step>
+                <Step>Write 512-byte identity block to unallocated space after image end</Step>
+                <Step>Identity block contains: WIB_ID, Tester, Test_Site, Foam_Box_ID, Flash_Date, Image filename, Image size, "Made by Lingyun Ke"</Step>
+            </Process>
+            <Report>
+                <Filename>Test0802_SD_Flash_report_P.html or _F.html</Filename>
+                <PassCriteria>dd exits with return code 0 and identity block written successfully</PassCriteria>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="2" id="CONFIRM_START" type="Confirmation_Gate">
+            <Name>Pre-Test Safety Confirmation</Name>
+            <Keyword>begin the test</Keyword>
+            <Message>Are you ready for the WIB QC Test</Message>
+            <Behavior>Loops until exact phrase typed (case-insensitive). Cannot be bypassed.</Behavior>
+            <WatchdogStart>Watchdog background process launched after this gate</WatchdogStart>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="3" id="Test01" type="AutoTest">
+            <Name>Test01 — Serial / TCPIP Communication</Name>
+            <Script>component/Test01_Serial_TCPIP_Communication.py</Script>
+            <Timeout_min>7</Timeout_min>
+            <Tests>
+                <Test>UART serial detection</Test>
+                <Test>TCP/IP ping to 192.168.121.1</Test>
+                <Test>TCP/IP ping to 192.168.121.2</Test>
+                <Test>Telnet login verification</Test>
+            </Tests>
+            <FailBehavior>Options: [R] Retry / [S] Skip / [E] Exit (input case-insensitive)</FailBehavior>
+            <Report>
+                <Filename>Test01_Communication_report_P.html or _F.html</Filename>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="4" id="Test02" type="AutoTest">
+            <Name>Test02 — Calibration Path Control</Name>
+            <Script>component/Test02_Calibration_Path_Control.py</Script>
+            <Timeout_min>7</Timeout_min>
+            <Tests>
+                <Test>Calibration path switching via TCP command</Test>
+                <Test>Readback verification</Test>
+            </Tests>
+            <Report>
+                <Filename>Test02_Calibration_report_P.html or _F.html</Filename>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="5" id="Test03" type="AutoTest">
+            <Name>Test03 — FEMB Power Rail Measurement (4 voltage groups)</Name>
+            <Scripts>
+                <Script>component/Test03_power_rail_for_FEMB_1V.py</Script>
+                <Script>component/Test03_power_rail_for_FEMB_2V.py</Script>
+                <Script>component/Test03_power_rail_for_FEMB_3V.py</Script>
+                <Script>component/Test03_power_rail_for_FEMB_4V.py</Script>
+            </Scripts>
+            <Timeout_min>7 per script</Timeout_min>
+            <PowerSupply>Rigol DP800 — Channel 1 and Channel 2 at 12V/3A</PowerSupply>
+            <RailsChecked>
+                <Rail name="FE"   V_tolerance="±0.15V" I_min="0.0A" I_max="1.5A"/>
+                <Rail name="CD"   V_tolerance="±0.15V" I_min="0.0A" I_max="0.5A"/>
+                <Rail name="ADC"  V_tolerance="±0.15V" I_min="0.0A" I_max="2.5A"/>
+                <Rail name="IDLE" V_tolerance="±0.15V" I_min="0.0A" I_max="0.3A"/>
+                <Rail name="BIAS" V_tolerance="±0.15V" I_min="0.0A" I_max="0.2A"/>
+            </RailsChecked>
+            <SlotsPerScript>4 FEMB slots (0–3)</SlotsPerScript>
+            <Report>
+                <Filename>Test03_1V/2V/3V/4V_power_report_P.html or _F.html</Filename>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="6" id="Test04" type="AutoTest">
+            <Name>Test04 — WIB to FEMB Pulse Test (4 slots)</Name>
+            <Scripts>
+                <Script slot="0">component/Test0400_WIB_FEMB_Pulse.py</Script>
+                <Script slot="1">component/Test0401_WIB_FEMB_Pulse.py</Script>
+                <Script slot="2">component/Test0402_WIB_FEMB_Pulse.py</Script>
+                <Script slot="3">component/Test0403_WIB_FEMB_Pulse.py</Script>
+            </Scripts>
+            <Timeout_min>7 per slot</Timeout_min>
+            <Tests>
+                <Test>Send calibration pulse to FEMB via WIB</Test>
+                <Test>Verify pulse readback on all channels</Test>
+            </Tests>
+            <FailBehavior>Options: [R] Retry / [S] Skip / [E] Exit (input case-insensitive)</FailBehavior>
+            <Report>
+                <Filename>Test0400–0403 result directories with result.html</Filename>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="7" id="Test05" type="AutoTest">
+            <Name>Test05 — I2C Device Search</Name>
+            <Script>component/Test05_Search_I2C.py</Script>
+            <Timeout_min>7</Timeout_min>
+            <Tests>
+                <Test>i2cdetect scan on bus 0 and bus 1</Test>
+                <Test>Verify presence of all expected I2C devices</Test>
+                <Test>SI5342 clock chip detection</Test>
+                <Test>SI5344 clock chip detection</Test>
+                <Test>PTB interface device scan</Test>
+            </Tests>
+            <Report>
+                <Filename>Test05_I2C_Device_report_P.html or _F.html</Filename>
+                <PassCriteria>All expected devices detected</PassCriteria>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="8" id="Test052" type="AutoTest">
+            <Name>Test052 — I2C Sensor Information</Name>
+            <Script>component/Test052_getInfoFromI2C.py</Script>
+            <Timeout_min>7</Timeout_min>
+            <Connection>Telnet to 192.168.121.1 port 23</Connection>
+            <Sensors>
+                <Sensor name="LTC2499 (0x15)" type="Temperature ADC" bus="0">
+                    <Description>24-bit ADC for FEMB/WIB diode temperature sensors</Description>
+                    <VREF>2.578V (3.3V × 1K/(280+1K))</VREF>
+                    <Formula>temp = (1.543 - V) / 0.0033 - 273</Formula>
+                    <Channels>
+                        <Channel id="0" key="LTC2499_FEMB0_Temperature"/>
+                        <Channel id="1" key="LTC2499_FEMB1_Temperature"/>
+                        <Channel id="2" key="LTC2499_FEMB2_Temperature"/>
+                        <Channel id="3" key="LTC2499_FEMB3_Temperature"/>
+                        <Channel id="4" key="LTC2499_WIB1_Temperature"/>
+                        <Channel id="5" key="LTC2499_WIB2_Temperature"/>
+                        <Channel id="6" key="LTC2499_WIB3_Temperature"/>
+                    </Channels>
+                    <ReadMethod>i2ctransfer writeread (matches C i2c_writeread), 5-sample average per channel</ReadMethod>
+                </Sensor>
+                <Sensor name="INA226 (0x46)" type="Voltage/Current Monitor" bus="0">
+                    <Measurement key="LINA226_Vbus" LSB="1.25mV"/>
+                    <Measurement key="INA226_Current" Rshunt="0.005Ω" LSB="2.5µV"/>
+                </Sensor>
+                <Sensor name="AD7414 (0x4A)" type="Temperature" bus="0">
+                    <Measurement key="AD7414_0x4A_temperature" resolution="10-bit, 0.25°C/LSB"/>
+                </Sensor>
+                <Sensor name="AD7414 (0x49)" type="Temperature" bus="0">
+                    <Measurement key="AD7414_0x49_temperature" resolution="10-bit, 0.25°C/LSB"/>
+                </Sensor>
+                <Sensor name="AD7414 (0x4D)" type="Temperature" bus="0">
+                    <Measurement key="AD7414_0x4D_temperature" resolution="10-bit, 0.25°C/LSB"/>
+                </Sensor>
+                <Sensor name="LTC2991 (0x48)" type="Voltage/Current/Temperature Monitor" bus="0">
+                    <Description>8-channel, single-ended mode, 5-sample average per channel</Description>
+                    <LSB_voltage>305.18µV</LSB_voltage>
+                    <RailPairs Rsense="0.1Ω">
+                        <Pair rails="V1-V2" key_current="LTC2991_0x48_V0.85_c" key_voltage="LTC2991_0x48_V0.85_v"/>
+                        <Pair rails="V3-V4" key_current="LTC2991_0x48_V5.0_c"  key_voltage="LTC2991_0x48_V5.0_v"/>
+                        <Pair rails="V5-V6" key_current="LTC2991_0x48_V2.5_c"  key_voltage="LTC2991_0x48_V2.5_v"/>
+                        <Pair rails="V7-V8" key_current="LTC2991_0x48_V1.8_c"  key_voltage="LTC2991_0x48_V1.8_v"/>
+                    </RailPairs>
+                    <Measurement key="LTC2991_0x48_temperature" register="0x1A"/>
+                    <Measurement key="LTC2991_0x48_VCC" formula="raw × 305.18µV + 2.5V"/>
+                </Sensor>
+                <Sensor name="LTC2990 (0x4C)" type="Voltage/Current/Temperature Monitor" bus="0">
+                    <Measurement key="LTC2990_0x4C_V1.2_v"      register="0x06"/>
+                    <Measurement key="LTC2990_0x4C_V3.3_v"      register="0x0A"/>
+                    <Measurement key="LTC2990_0x4C_temperature"  register="0x04"/>
+                    <Measurement key="LTC2990_0x4C_VCC"          formula="raw × 305.18µV + 2.5V"/>
+                    <Measurement key="LTC2990_0x4c_V1_2_c"       Rsense="0.1Ω"/>
+                    <Measurement key="LTC2990_0x4c_V3.3_c"       Rsense="0.1Ω"/>
+                </Sensor>
+                <Sensor name="LTC2990 (0x4E)" type="Voltage/Current/Temperature Monitor" bus="0">
+                    <Measurement key="LTC2990_0x4e_V0.9_v"          register="0x06"/>
+                    <Measurement key="LTC2990_0x4e_VCCPSPLL_1.2_v"  register="0x0A"/>
+                    <Measurement key="LTC2990_0x4e_temperature"      register="0x04"/>
+                    <Measurement key="LTC2990_0x4e_VCC"              formula="raw × 305.18µV + 2.5V"/>
+                    <Measurement key="LTC2990_0x4e_PSDDR4_v"         register="0x0C"/>
+                    <Measurement key="LTC2990_0x4e_V0.9_c"           Rsense="0.1Ω"/>
+                </Sensor>
+            </Sensors>
+            <Report>
+                <Filename>Test052_I2C_Sensor_report_P.html or _F.html</Filename>
+                <PassCriteria>All sensor reads return non-None values</PassCriteria>
+                <FailDisplay>Red "READ FAILED" cell in HTML report</FailDisplay>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="9" id="Test06" type="AutoTest">
+            <Name>Test06 — PTB Interface Path</Name>
+            <Script>component/Test06_PTB_Interface_Path.py</Script>
+            <Timeout_min>7</Timeout_min>
+            <Tests>
+                <Test>I2C device scan on PTB interface bus</Test>
+                <Test>SI5342 / SI5344 presence check</Test>
+                <Test>Additional PTB-connected device scan</Test>
+            </Tests>
+            <Report>
+                <Filename>Test06_PTB_Interface_P.html or _F.html</Filename>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="10" id="Test07" type="AutoTest">
+            <Name>Test07 — IBERT (Integrated Bit Error Ratio Test)</Name>
+            <Script>component/Test07_IBERT.py</Script>
+            <Timeout_min>20</Timeout_min>
+            <Description>High-speed serial link quality test via Vivado IBERT tool</Description>
+            <Report>
+                <Filename>Test07_IBERT_report directory with result.html</Filename>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="11" id="CONFIRM_CTS" type="Confirmation_Gate">
+            <Name>Pre-CTS Safety Confirmation</Name>
+            <GUIPopup>Page reminder — replace SD card with production firmware SD</GUIPopup>
+            <Keyword>use production firmware sd card</Keyword>
+            <Message>Please confirm the SD card have been replaced with production SD card.</Message>
+            <Behavior>Loops until exact phrase typed (case-insensitive). Cannot be bypassed.</Behavior>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="12" id="Test0803" type="AutoTest">
+            <Name>Test0803 — CTS FEMB Checkout</Name>
+            <Script>component/Test0803_CTS_Checkout.py</Script>
+            <Timeout_min>7</Timeout_min>
+            <Description>Cold Test Stand functional checkout of FEMB boards in all slots</Description>
+            <TesterName>Read from file/wib_info.csv (key: tester)</TesterName>
+            <Slots>0, 1, 2, 3 (empty slots skipped automatically)</Slots>
+            <Tests>
+                <Test>Ping WIB (QC_TST_EN=77)</Test>
+                <Test>Init WIB (QC_TST_EN=0)</Test>
+                <Test>Init FEMB I2C (QC_TST_EN=1)</Test>
+                <Test>FEMB Checkout (QC_TST_EN=2)</Test>
+            </Tests>
+            <Report>
+                <Filename>Test0803_CTS_Checkout_report_P.html or _F.html</Filename>
+                <SavedTo>Session report directory via get_report_dir()</SavedTo>
+            </Report>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="13" id="FinalReport" type="Report_Generation">
+            <Name>Final Report</Name>
+            <Script>component/Final_Report.py</Script>
+            <Timeout_min>7</Timeout_min>
+            <Description>
+                Aggregates all individual test HTML reports into one comprehensive QC report.
+                Saves as HTML and attempts PDF export.
+            </Description>
+            <TestItems>
+                <Item id="test01"   report_base="Test01_Communication_report"     rp_key="item01"/>
+                <Item id="test02"   report_base="Test02_Calibration_report"        rp_key="item02"/>
+                <Item id="test031"  report_base="Test03_1V_power_report"           rp_key="item031"/>
+                <Item id="test032"  report_base="Test03_2V_power_report"           rp_key="item032"/>
+                <Item id="test033"  report_base="Test03_3V_power_report"           rp_key="item033"/>
+                <Item id="test034"  report_base="Test03_4V_power_report"           rp_key="item034"/>
+                <Item id="test041"  report_base="Test0400_FEMB_Slot0_Pulse"        rp_key="item041" type="directory"/>
+                <Item id="test042"  report_base="Test0401_FEMB_Slot1_Pulse"        rp_key="item042" type="directory"/>
+                <Item id="test043"  report_base="Test0402_FEMB_Slot2_Pulse"        rp_key="item043" type="directory"/>
+                <Item id="test044"  report_base="Test0403_FEMB_Slot3_Pulse"        rp_key="item044" type="directory"/>
+                <Item id="test051"  report_base="Test05_I2C_Device_report"         rp_key="item051"/>
+                <Item id="test052"  report_base="Test052_I2C_Sensor_report"        rp_key="item052"/>
+                <Item id="test06"   report_base="Test06_PTB_Interface"             rp_key="item06"/>
+                <Item id="test07"   report_base="Test07_IBERT_report"              rp_key="item07" type="directory"/>
+                <Item id="test0802" report_base="Test0802_SD_Flash_report"         rp_key="item0802"/>
+                <Item id="test0803" report_base="Test0803_CTS_Checkout_report"     rp_key="item0803"/>
+            </TestItems>
+            <MissedTestBehavior>
+                Status shown as "Not Run / N/A" in summary table.
+                Overall result is FAIL if any item is missed.
+            </MissedTestBehavior>
+            <Output>
+                <File>Final_Report.html (embedded, self-contained)</File>
+                <File>Final_Report.pdf (if weasyprint available)</File>
+            </Output>
+        </Step>
+
+        <!-- ─────────────────────────────────────────────── -->
+        <Step order="14" id="POST" type="GUI_Wrap_Up">
+            <Name>Post-Test Wrap-Up</Name>
+            <Actions>
+                <Action>Watchdog stopped (stop_watchdog())</Action>
+                <Action>Show result popup (PASS/FAIL, WIB ID, Foam Box ID, duration)</Action>
+                <Action>GUI popup: Page 10 — Package WIB into ESD bag and foam</Action>
+                <Action>GUI popup: Page 11 — Label WIB with test results</Action>
+                <Action>Send summary email to tester with WIB ID, site, duration</Action>
+            </Actions>
+        </Step>
+
+    </TestFlow>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         REPORT SYSTEM
+    ═══════════════════════════════════════════════════════════ -->
+    <ReportSystem>
+        <PassFailNaming>
+            <Convention>
+                Each test saves {report_base}_P.html (pass) or {report_base}_F.html (fail).
+                Final_Report.py determines pass/fail from filename suffix.
+            </Convention>
+        </PassFailNaming>
+        <HTMLStyle>
+            <Based_On>Test05_Search_I2C.py style</Based_On>
+            <Elements>container, header with PASS/FAIL badge, info-section, data table with status column, footer</Elements>
+            <Footer>Made by Lingyun Ke</Footer>
+        </HTMLStyle>
+        <Authorship>
+            <FileHeader lines="7">
+                Developer  : lke, cde
+                Email      : lingyun.lke@gmail.com
+                Date       : April 2026
+                Project    : DUNE WIB Quality Control System
+                Institute  : BNL (Brookhaven National Laboratory)
+                Repository : Public
+                Copyright  : © 2026 Lingyun Ke. All rights reserved.
+            </FileHeader>
+            <ReportFooter>Made by Lingyun Ke</ReportFooter>
+            <LogSuffix>Made by Lingyun Ke</LogSuffix>
+        </Authorship>
+    </ReportSystem>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         UTILITY MODULES
+    ═══════════════════════════════════════════════════════════ -->
+    <Utilities>
+        <Module name="function/report_path.py"   purpose="Session directory creation and report path resolution"/>
+        <Module name="function/session_info.py"  purpose="Session metadata storage for subprocess access"/>
+        <Module name="function/heartbeat.py"     purpose="Watchdog heartbeat update and stop"/>
+        <Module name="function/watchdog.py"      purpose="Background stuck-process detection and email alert"/>
+        <Module name="function/Rigol_DP800.py"   purpose="PSU control: set_channel(), measure(), safe_power_off(), close()"/>
+        <Module name="function/ping_host.py"     purpose="ICMP ping utility"/>
+        <Module name="function/tcp_cfg.py"       purpose="TCP command interface to WIB"/>
+        <Module name="function/cls_udp.py"       purpose="UDP communication layer"/>
+        <Module name="function/chkout.py"        purpose="Checkout result helper with Made by Lingyun Ke footer"/>
+        <Module name="GUI/pop_window.py"         purpose="All GUI popups: image, dual-input, confirm, result, action"/>
+        <Module name="GUI/send_email.py"         purpose="SMTP email sender"/>
+        <Module name="file/report_dict.py"       purpose="Shared in-process data store for all test measurements"/>
+        <Module name="file/wib_info.csv"         purpose="Session config: WIB_ID, tester, SUDO_PASSWORD, SD_IMAGE_PATH, etc."/>
+    </Utilities>
+
+</WIB_QC_System>

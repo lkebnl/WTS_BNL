@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
-
+#chmod +x copy_ssh_key.sh
+#./copy_ssh_key.sh root@192.168.121.123
 # -------------------------------
 # Configuration
 # -------------------------------

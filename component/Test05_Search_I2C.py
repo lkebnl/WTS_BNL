@@ -222,9 +222,9 @@ def validate_power_supply(v1, c1, v2, c2, result_dict=None):
     v1_ok = 11.0 <= v1 <= 13.0
     v2_ok = 11.0 <= v2 <= 13.0
 
-    # Check current ranges (0.5A - 3.0A expected)
-    c1_ok = 0.5 <= c1 <= 3.0
-    c2_ok = 0.5 <= c2 <= 3.0
+    # Check combined current range (1.1A - 1.9A for Ch1+Ch2 total)
+    total_current = c1 + c2
+    total_ok = 1.1 <= total_current <= 1.9
 
     if not v1_ok:
         errors.append(f"Ch1 Voltage {v1:.3f}V out of range (11.0-13.0V)")
@@ -233,13 +233,6 @@ def validate_power_supply(v1, c1, v2, c2, result_dict=None):
     else:
         print_pass(f"  ✓ Ch1 Voltage PASS: {v1:.3f}V")
 
-    if not c1_ok:
-        errors.append(f"Ch1 Current {c1:.3f}A out of range (0.5-3.0A)")
-        print_fail(f"  ✗ Ch1 Current FAIL: {c1:.3f}A (expected 0.5-3.0A)")
-        print_warning(TROUBLESHOOT["psu_current_fail"])
-    else:
-        print_pass(f"  ✓ Ch1 Current PASS: {c1:.3f}A")
-
     if not v2_ok:
         errors.append(f"Ch2 Voltage {v2:.3f}V out of range (11.0-13.0V)")
         print_fail(f"  ✗ Ch2 Voltage FAIL: {v2:.3f}V (expected 11.0-13.0V)")
@@ -247,12 +240,12 @@ def validate_power_supply(v1, c1, v2, c2, result_dict=None):
     else:
         print_pass(f"  ✓ Ch2 Voltage PASS: {v2:.3f}V")
 
-    if not c2_ok:
-        errors.append(f"Ch2 Current {c2:.3f}A out of range (0.5-3.0A)")
-        print_fail(f"  ✗ Ch2 Current FAIL: {c2:.3f}A (expected 0.5-3.0A)")
+    if not total_ok:
+        errors.append(f"Total Current {total_current:.3f}A out of range (1.1-1.9A) [Ch1: {c1:.3f}A, Ch2: {c2:.3f}A]")
+        print_fail(f"  ✗ Total Current FAIL: {total_current:.3f}A (Ch1: {c1:.3f}A + Ch2: {c2:.3f}A, expected 1.1-1.9A)")
         print_warning(TROUBLESHOOT["psu_current_fail"])
     else:
-        print_pass(f"  ✓ Ch2 Current PASS: {c2:.3f}A")
+        print_pass(f"  ✓ Total Current PASS: {total_current:.3f}A (Ch1: {c1:.3f}A + Ch2: {c2:.3f}A)")
 
     if result_dict is not None and errors:
         if "error_log" not in result_dict:
@@ -376,15 +369,14 @@ psu_ok = validate_power_supply(v1, c1, v2, c2, result_dict)
 # Update CSV with WIB power measurements
 if rp_dict.csv_manager:
     v1_status = "PASS" if 11.0 <= v1 <= 13.0 else "FAIL"
-    c1_status = "PASS" if 0.5 <= c1 <= 3.0 else "FAIL"
     v2_status = "PASS" if 11.0 <= v2 <= 13.0 else "FAIL"
-    c2_status = "PASS" if 0.5 <= c2 <= 3.0 else "FAIL"
+    total_current_status = "PASS" if 1.1 <= (c1 + c2) <= 1.9 else "FAIL"
 
     rp_dict.csv_manager.batch_update([
         {"item_id": "T05_00", "value": round(v1, 3), "status": v1_status},
-        {"item_id": "T05_01", "value": round(c1, 3), "status": c1_status},
+        {"item_id": "T05_01", "value": round(c1, 3), "status": total_current_status},
         {"item_id": "T05_02", "value": round(v2, 3), "status": v2_status},
-        {"item_id": "T05_03", "value": round(c2, 3), "status": c2_status}
+        {"item_id": "T05_03", "value": round(c2, 3), "status": total_current_status}
     ])
 
 time.sleep(1)
@@ -448,18 +440,76 @@ if connection:
         rp_dict.log06_PTB['SI5344'] = 'No ...'
         i2c_failures.append('SI5344 at 0x6b')
 
-    # --- Scan Bus 0x02: TCA9546ADR ---
+    # --- Scan Bus 0x02: TCA9546ADR + SFP 1367073-2 ---
     print_info("\n  [Bus 0x02] Scanning for TCA9546ADR...")
     tcp.tcp_poke(1, 0x02)
     readback = send_command(connection, 'i2cdetect -r -y 0')
-    Device = 'TCA9546ADR';    Address = '70'
+    Device = 'TCA9546ADR'
+    Address = '70'
     i2c_devices_total += 1
     if validate_i2c_device(readback, Device, Address, result_dict):
         rp_dict.log06_PTB['{} 0x{}'.format(Device, Address)] = 'Detected'
         i2c_devices_found += 1
+        # 遍历TCA9546A全部4个channel，切换前先关闭所有channel避免穿透
+        print_info("    Scanning all TCA9546A channels...")
+        for ch in range(4):
+            # 先关闭所有channel，等待总线稳定
+            # send_command(connection, 'i2cset -y 0 0x70 0x00')
+            time.sleep(0.05)
+            # 再选通目标channel
+            send_command(connection, f'i2cset -y 0 0x70 {1 << ch}')
+            time.sleep(0.05)
+            rb = send_command(connection, 'i2cdetect -r -y 0')
+            # 从i2cdetect输出提取响应地址（非--、非UU，排除MUX自身0x70）
+            found_addrs = []
+            for line in rb.splitlines():
+                if ':' in line and len(line) > 4:
+                    prefix = line.split(':')[0].strip()
+                    if not all(c in '0123456789abcdefABCDEF' for c in prefix):
+                        continue
+                    try:
+                        row_base = int(prefix, 16)
+                    except ValueError:
+                        continue
+                    parts = line.split(':')[1].split()
+                    for i, tok in enumerate(parts):
+                        if tok not in ('--', 'UU') and tok != '70':
+                            addr = row_base + i
+                            found_addrs.append(f'0x{addr:02x}')
+            if found_addrs:
+                print_pass(f"    TCA ch{ch}: {', '.join(found_addrs)}")
+                # SFP 1367073-2: A0h页(0x50) 基本标识
+                if '0x50' in found_addrs:
+                    i2c_devices_total += 1
+                    i2c_devices_found += 1
+                    rp_dict.log06_PTB['SFP_1367073-2 0x50'] = f'Detected (TCA ch{ch})'
+                # SFP 1367073-2: A2h页(0x51) 诊断监控DDM
+                if '0x51' in found_addrs:
+                    i2c_devices_total += 1
+                    i2c_devices_found += 1
+                    rp_dict.log06_PTB['SFP_1367073-2 0x51'] = f'Detected (TCA ch{ch})'
+            else:
+                print_info(f"    TCA ch{ch}: no devices")
+        # SFP未在任何channel发现时记录失败
+        if 'SFP_1367073-2 0x50' not in rp_dict.log06_PTB:
+            i2c_devices_total += 1
+            rp_dict.log06_PTB['SFP_1367073-2 0x50'] = 'No'
+            i2c_failures.append('SFP_1367073-2 at 0x50')
+        if 'SFP_1367073-2 0x51' not in rp_dict.log06_PTB:
+            i2c_devices_total += 1
+            rp_dict.log06_PTB['SFP_1367073-2 0x51'] = 'No'
+            i2c_failures.append('SFP_1367073-2 at 0x51')
+        # 扫描完毕，关闭所有channel
+        send_command(connection, 'i2cset -y 0 0x70 0x00')
     else:
         rp_dict.log06_PTB['{} 0x{}'.format(Device, Address)] = 'No'
         i2c_failures.append(f'{Device} at 0x{Address}')
+        # TCA不存在则SFP也无法扫描
+        i2c_devices_total += 2
+        rp_dict.log06_PTB['SFP_1367073-2 0x50'] = 'No (TCA missing)'
+        rp_dict.log06_PTB['SFP_1367073-2 0x51'] = 'No (TCA missing)'
+        i2c_failures.append('SFP_1367073-2 at 0x50')
+        i2c_failures.append('SFP_1367073-2 at 0x51')
 
     # --- Scan Bus 0x03: LTC2991 (multiple) and LTC2990 ---
     print_info("\n  [Bus 0x03] Scanning for LTC2991/LTC2990 devices...")
@@ -833,13 +883,19 @@ html_content = f"""
                     <td>Channel 1</td>
                     <td>{v1:.3f}</td>
                     <td>{c1:.3f}</td>
-                    <td class="{'status-pass' if 11.0 <= v1 <= 13.0 and 0.5 <= c1 <= 3.0 else 'status-fail'}">{'PASS' if 11.0 <= v1 <= 13.0 and 0.5 <= c1 <= 3.0 else 'FAIL'}</td>
+                    <td class="{'status-pass' if 11.0 <= v1 <= 13.0 else 'status-fail'}">{'PASS' if 11.0 <= v1 <= 13.0 else 'FAIL'}</td>
                 </tr>
                 <tr>
                     <td>Channel 2</td>
                     <td>{v2:.3f}</td>
                     <td>{c2:.3f}</td>
-                    <td class="{'status-pass' if 11.0 <= v2 <= 13.0 and 0.5 <= c2 <= 3.0 else 'status-fail'}">{'PASS' if 11.0 <= v2 <= 13.0 and 0.5 <= c2 <= 3.0 else 'FAIL'}</td>
+                    <td class="{'status-pass' if 11.0 <= v2 <= 13.0 else 'status-fail'}">{'PASS' if 11.0 <= v2 <= 13.0 else 'FAIL'}</td>
+                </tr>
+                <tr>
+                    <td>Total Current</td>
+                    <td>—</td>
+                    <td>{c1 + c2:.3f}</td>
+                    <td class="{'status-pass' if 1.1 <= c1 + c2 <= 1.9 else 'status-fail'}">{'PASS' if 1.1 <= c1 + c2 <= 1.9 else 'FAIL'}</td>
                 </tr>
             </tbody>
         </table>

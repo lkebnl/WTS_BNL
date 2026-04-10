@@ -38,19 +38,30 @@ def show_image_popup(
     main_frame = ttk.Frame(root, padding=20)
     main_frame.pack(fill="both", expand=True)
 
+    # === Confirm button — centered, above image ===
+    tk.Button(
+        main_frame,
+        text="Confirm",
+        command=close_window,
+        font=("Arial", 14, "bold"),
+        width=12,
+        height=1,
+        bg="#4CAF50",
+        fg="white"
+    ).pack(pady=(0, 8))
+
     # === Image display ===
     if image_path:
         try:
             img = Image.open(image_path)
 
-            # Fit image to screen (keeping aspect ratio)
+            # Fit image to remaining screen space (button takes ~50px)
             img_ratio = img.height / img.width
             target_width = screen_width - 100
             target_height = int(target_width * img_ratio)
 
-            # If image too tall, scale by height instead
-            if target_height > screen_height - 150:
-                target_height = screen_height - 150
+            if target_height > screen_height - 120:
+                target_height = screen_height - 120
                 target_width = int(target_height / img_ratio)
 
             img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
@@ -62,13 +73,6 @@ def show_image_popup(
         except Exception as e:
             print(f"Error loading image: {e}")
             ttk.Label(main_frame, text="Error loading image.", font=("Arial", 24)).pack(expand=True)
-
-    # === Bottom Close Button ===
-    ttk.Button(
-        main_frame,
-        text="Confirm",
-        command=close_window
-    ).pack(padx=40,pady=40)
 
     root.mainloop()
 
@@ -522,6 +526,189 @@ def show_result_popup(
     root.mainloop()
 
 
+def show_result_with_rescan_popup(
+    title="WIB QC Test Complete",
+    result_status="pass",
+    message="",
+    detail_link=None,
+    image_path=None,
+    wib_id="",
+    foam_box_id=""
+):
+    """
+    Merged final popup: shows 15.png as background with the test result and
+    two rescan entry fields overlaid in the center of the image.
+
+    Tester must rescan:
+      1. WIB Box ID  (confirm before packaging WIB)
+      2. Foam Box ID (confirm before putting WIB into foam box)
+
+    Both fields must match the original IDs. Continue button is locked until
+    both rescans are confirmed.
+
+    Returns:
+        tuple: (rescanned_wib_id, rescanned_foam_box_id)
+    """
+    result = {"wib": "", "foam": ""}
+
+    if result_status == "pass":
+        result_text  = "PASS"
+        result_color = "#1a7f1a"
+        badge_bg     = "#d4edda"
+    elif result_status == "fail":
+        result_text  = "FAIL"
+        result_color = "#cc0000"
+        badge_bg     = "#f8d7da"
+    else:
+        result_text  = "WARNING"
+        result_color = "#cc7700"
+        badge_bg     = "#fff3cd"
+
+    root = tk.Tk()
+    root.title(title)
+    root.attributes('-fullscreen', True)
+
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+
+    # ── Canvas as full-screen base (holds image background) ──
+    canvas = tk.Canvas(root, width=screen_w, height=screen_h, highlightthickness=0)
+    canvas.pack(fill="both", expand=True)
+
+    # Background image
+    bg_photo = None
+    if image_path:
+        try:
+            img = Image.open(image_path).resize((screen_w, screen_h), Image.Resampling.LANCZOS)
+            bg_photo = ImageTk.PhotoImage(img)
+            canvas.create_image(0, 0, anchor="nw", image=bg_photo)
+        except Exception:
+            canvas.configure(bg="#f0f0f0")
+    else:
+        canvas.configure(bg="#f0f0f0")
+
+    # ── Top-right: result overlay ──
+    overlay = tk.Frame(canvas, bg="white", bd=2, relief="solid")
+    overlay_w = 840
+    overlay_x = screen_w - overlay_w - 30
+    overlay_y = 30
+    canvas.create_window(overlay_x, overlay_y, anchor="nw", window=overlay, width=overlay_w)
+
+    # Title
+    tk.Label(overlay, text=title, font=("Arial", 20, "bold"),
+             bg="white").pack(pady=(18, 4))
+
+    # PASS/FAIL badge
+    tk.Label(overlay, text=result_text, font=("Arial", 48, "bold"),
+             fg=result_color, bg=badge_bg, width=10).pack(pady=(4, 6))
+
+    # Message (WIB ID, Foam Box, Duration)
+    if message:
+        tk.Label(overlay, text=message, font=("Arial", 14),
+                 bg="white", justify="center").pack(pady=(0, 14))
+
+    # ── Top-right: rescan inputs (below overlay) ──
+    scan_frame = tk.Frame(canvas, bg="white", bd=2, relief="solid")
+    scan_w = 840
+    scan_x = screen_w - scan_w - 30
+    scan_y = overlay_y + 280
+    canvas.create_window(scan_x, scan_y, anchor="nw", window=scan_frame, width=scan_w)
+
+    pad = dict(padx=16, pady=5)
+
+    # ── Rescan 1: WIB Box ID ──
+    tk.Label(scan_frame, text="Rescan WIB Box ID to confirm packaging:",
+             font=("Arial", 12, "bold"), bg="white").pack(**pad)
+    wib_var = tk.StringVar()
+    wib_status = tk.Label(scan_frame, text="", font=("Arial", 11), bg="white")
+    wib_entry = tk.Entry(scan_frame, textvariable=wib_var,
+                         font=("Arial", 15), width=52, justify="center")
+    wib_entry.pack(padx=16, pady=(0, 2))
+    wib_status.pack()
+
+    # ── Rescan 2: Foam Box ID ──
+    tk.Label(scan_frame, text="Rescan Foam Box ID before placing into foam:",
+             font=("Arial", 12, "bold"), bg="white").pack(**pad)
+    foam_var = tk.StringVar()
+    foam_status = tk.Label(scan_frame, text="", font=("Arial", 11), bg="white")
+    foam_entry = tk.Entry(scan_frame, textvariable=foam_var,
+                          font=("Arial", 15), width=52, justify="center")
+    foam_entry.pack(padx=16, pady=(0, 2))
+    foam_status.pack()
+
+    # ── Continue button ──
+    continue_btn = tk.Button(
+        scan_frame, text="Continue",
+        font=("Arial", 16, "bold"), width=18, height=2,
+        bg="#cccccc", fg="white", state="disabled"
+    )
+    continue_btn.pack(pady=(10, 14))
+
+    confirmed = {"wib": False, "foam": False}
+
+    def check_fields(*_):
+        # Auto-replace '/' with '_' in both fields
+        for _var in (wib_var, foam_var):
+            _val = _var.get()
+            if '/' in _val:
+                _var.set(_val.replace('/', '_'))
+
+        wib_typed  = wib_var.get().strip()
+        foam_typed = foam_var.get().strip()
+
+        # Validate WIB
+        if wib_typed:
+            if wib_id and wib_typed.lower() != wib_id.lower():
+                wib_status.config(text=f"✗ Expected: {wib_id}", fg="red")
+                confirmed["wib"] = False
+            else:
+                wib_status.config(text="✓ Confirmed", fg="green")
+                confirmed["wib"] = True
+        else:
+            wib_status.config(text="")
+            confirmed["wib"] = False
+
+        # Validate Foam Box
+        if foam_typed:
+            if foam_box_id and foam_typed.lower() != foam_box_id.lower():
+                foam_status.config(text=f"✗ Expected: {foam_box_id}", fg="red")
+                confirmed["foam"] = False
+            else:
+                foam_status.config(text="✓ Confirmed", fg="green")
+                confirmed["foam"] = True
+        else:
+            foam_status.config(text="")
+            confirmed["foam"] = False
+
+        # Enable Continue only when both confirmed
+        if confirmed["wib"] and confirmed["foam"]:
+            continue_btn.config(state="normal", bg="#4CAF50")
+        else:
+            continue_btn.config(state="disabled", bg="#cccccc")
+
+    def on_continue():
+        result["wib"]  = wib_var.get().strip().replace('/', '_')
+        result["foam"] = foam_var.get().strip().replace('/', '_')
+        root.destroy()
+
+    wib_var.trace_add("write", check_fields)
+    foam_var.trace_add("write", check_fields)
+    continue_btn.config(command=on_continue)
+
+    # Report link at bottom of scan frame
+    if detail_link:
+        tk.Label(scan_frame, text=f"Report: {detail_link}",
+                 font=("Arial", 11), fg="blue", bg="white").pack(pady=(0, 6))
+
+    root.protocol("WM_DELETE_WINDOW", lambda: None)
+    root.bind("<Escape>", lambda e: None)
+
+    wib_entry.focus_set()
+    root.mainloop()
+
+    return result["wib"], result["foam"]
+
+
 def show_email_input_popup(
     title="Enter Email Address",
     prompt="Enter your email for test notifications:"
@@ -828,7 +1015,7 @@ def show_dual_input_popup(
     esd_check_var = tk.BooleanVar()
     esd_checkbox = tk.Checkbutton(
         esd_frame,
-        text="Open box, check if the ESD bag is good",
+        text="Open box, check that the board is intact and shows no damage",
         variable=esd_check_var,
         command=on_esd_check,
         font=font_medium
@@ -935,7 +1122,7 @@ def show_image_popup_with_action(
         if action_script_path:
             try:
                 # Launch in gnome-terminal (or xterm as fallback)
-                terminal_cmd = f'gnome-terminal -- bash -c "python3 {action_script_path}; echo; echo Press Enter to close...; read"'
+                terminal_cmd = f'gnome-terminal -- bash -c "python3 {action_script_path} --shrink; echo; echo Press Enter to close...; read"'
                 subprocess.Popen(terminal_cmd, shell=True)
                 result["action_executed"] = True
                 run_count[0] += 1

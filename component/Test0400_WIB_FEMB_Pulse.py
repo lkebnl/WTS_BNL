@@ -309,7 +309,7 @@ def safe_restart_wib_service(max_retries=5, retry_delay=5):
 
 
 
-print("\033[35m" + "A_RT03_01 : Power Rail" + "\033[0m")
+# print("\033[35m" + "A_RT03_01 : Power Rail" + "\033[0m")
 
 # Initialize timing dictionary
 timing_dict = {}

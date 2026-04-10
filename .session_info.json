@@ -1,9 +1,9 @@
 {
-  "WIB_ID": "BNL_WIB_V3_I0-1750-1-F_00008",
-  "Foam_Box_ID": "BNL_WIB_V3_I0-1750-1-F_00008",
-  "tester": "1",
+  "WIB_ID": "123",
+  "Foam_Box_ID": "123",
+  "tester": "lke",
   "test_site": "BNL",
-  "start_time": "2026-04-06 15:11:55",
-  "report_dir": "/home/dune/Documents/WIB_QC/BNL_WIB_V3_I0-1750-1-F_00008_04_06_2026_15_11",
+  "start_time": "2026-04-10 17:04:44",
+  "report_dir": "/home/dune/Documents/WIB_QC/123_04_10_2026_17_04",
   "comment": "QC test"
 }

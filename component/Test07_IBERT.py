@@ -242,9 +242,9 @@ def validate_power_supply(v1, c1, v2, c2, result_dict=None):
     v1_ok = 11.0 <= v1 <= 13.0
     v2_ok = 11.0 <= v2 <= 13.0
 
-    # Check current ranges (0.5A - 3.0A expected)
-    c1_ok = 0.5 <= c1 <= 3.0
-    c2_ok = 0.5 <= c2 <= 3.0
+    # Check combined current range (1.1A - 1.9A for Ch1+Ch2 total)
+    total_current = c1 + c2
+    total_ok = 1.1 <= total_current <= 1.9
 
     if not v1_ok:
         errors.append(f"Ch1 Voltage {v1:.3f}V out of range (11.0-13.0V)")
@@ -253,13 +253,6 @@ def validate_power_supply(v1, c1, v2, c2, result_dict=None):
     else:
         print_pass(f"  ✓ Ch1 Voltage PASS: {v1:.3f}V")
 
-    if not c1_ok:
-        errors.append(f"Ch1 Current {c1:.3f}A out of range (0.5-3.0A)")
-        print_fail(f"  ✗ Ch1 Current FAIL: {c1:.3f}A (expected 0.5-3.0A)")
-        print_warning(TROUBLESHOOT["psu_current_fail"])
-    else:
-        print_pass(f"  ✓ Ch1 Current PASS: {c1:.3f}A")
-
     if not v2_ok:
         errors.append(f"Ch2 Voltage {v2:.3f}V out of range (11.0-13.0V)")
         print_fail(f"  ✗ Ch2 Voltage FAIL: {v2:.3f}V (expected 11.0-13.0V)")
@@ -267,12 +260,12 @@ def validate_power_supply(v1, c1, v2, c2, result_dict=None):
     else:
         print_pass(f"  ✓ Ch2 Voltage PASS: {v2:.3f}V")
 
-    if not c2_ok:
-        errors.append(f"Ch2 Current {c2:.3f}A out of range (0.5-3.0A)")
-        print_fail(f"  ✗ Ch2 Current FAIL: {c2:.3f}A (expected 0.5-3.0A)")
+    if not total_ok:
+        errors.append(f"Total Current {total_current:.3f}A out of range (1.1-1.9A) [Ch1: {c1:.3f}A, Ch2: {c2:.3f}A]")
+        print_fail(f"  ✗ Total Current FAIL: {total_current:.3f}A (Ch1: {c1:.3f}A + Ch2: {c2:.3f}A, expected 1.1-1.9A)")
         print_warning(TROUBLESHOOT["psu_current_fail"])
     else:
-        print_pass(f"  ✓ Ch2 Current PASS: {c2:.3f}A")
+        print_pass(f"  ✓ Total Current PASS: {total_current:.3f}A (Ch1: {c1:.3f}A + Ch2: {c2:.3f}A)")
 
     if result_dict is not None and errors:
         if "error_log" not in result_dict:

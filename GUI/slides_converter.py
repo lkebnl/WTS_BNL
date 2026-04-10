@@ -15,7 +15,7 @@ from pdf2image import convert_from_path
 # # Install Python package
 # pip3 install pdf2image
 
-pdf_path = "Pop-windows WIB.pdf"  # Your PDF file
+pdf_path = "Pop-windows WIB V2.pdf"  # Your PDF file
 output_dir = "output_pngs"
 os.makedirs(output_dir, exist_ok=True)
 

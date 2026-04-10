@@ -533,9 +533,9 @@ def main():
         if rp_dict.csv_manager:
             rp_dict.csv_manager.batch_update([
                 {"item_id": "T01_08", "value": round(v1, 3), "status": "PASS" if 11.0 <= v1 <= 13.0 else "FAIL"},
-                {"item_id": "T01_09", "value": round(c1, 3), "status": "PASS" if 0.5 <= c1 <= 3.0 else "FAIL"},
+                {"item_id": "T01_09", "value": round(c1, 3), "status": "PASS" if 1.1 <= (c1 + c2) <= 1.9 else "FAIL"},
                 {"item_id": "T01_10", "value": round(v2, 3), "status": "PASS" if 11.0 <= v2 <= 13.0 else "FAIL"},
-                {"item_id": "T01_11", "value": round(c2, 3), "status": "PASS" if 0.5 <= c2 <= 3.0 else "FAIL"},
+                {"item_id": "T01_11", "value": round(c2, 3), "status": "PASS" if 1.1 <= (c1 + c2) <= 1.9 else "FAIL"},
                 {"item_id": "T01_12", "value": test_duration, "status": "COMPLETE"}
             ])
 
