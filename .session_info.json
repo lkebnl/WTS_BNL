@@ -1,9 +1,9 @@
 {
-  "WIB_ID": "123",
-  "Foam_Box_ID": "123",
-  "tester": "lke",
+  "WIB_ID": "BNL_WIB_V3_I0-1750-1-F_00008",
+  "Foam_Box_ID": "https:__dbweb0.fnal.gov_cdbdev_view_component_D08100400001-00062",
+  "tester": "Shivam",
   "test_site": "BNL",
-  "start_time": "2026-04-10 17:04:44",
-  "report_dir": "/home/dune/Documents/WIB_QC/123_04_10_2026_17_04",
+  "start_time": "2026-04-24 16:00:50",
+  "report_dir": "/home/dune/Documents/WIB_QC/BNL_WIB_V3_I0-1750-1-F_00008_04_24_2026_16_00",
   "comment": "QC test"
 }

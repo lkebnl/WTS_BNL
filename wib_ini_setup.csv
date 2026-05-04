@@ -1,0 +1,55 @@
+# ============================================================
+# DUNE WIB QC System - Centralized Setup Configuration
+# Developer  : lke
+# Date       : May 2026
+# Description: Single source of truth for all paths and config
+# ============================================================
+
+# === SITE & IDENTITY ===
+Test_Site,BNL
+Tech_Coordinator,LKE
+Tech_site_email,lke@bnl.gov
+Tech_receiver,ke.lingyun@outlook.com
+
+# === LOCAL PATHS ===
+Project_Dir,/home/dune/Documents/DUNE_WIB_QC_Script
+Vivado_Path,/home/dune/Vivado/Vivado/2022.2/bin/vivado
+Report_Base_Dir,/home/dune/Documents/WIB_QC
+QC_data_root_folder,/home/dune/Documents/data
+SD_IMAGE_PATH,/home/dune/CE_firmware.img
+Network_Upload_Path,/data/femb/FEMB_CHK
+GUI_Image_Dir,./GUI/output_pngs
+Heartbeat_File,/tmp/wib_qc_heartbeat.json
+
+# === HARDWARE / POWER SUPPLY ===
+Rigol_PS_for_WIB,True
+Rigol_PS_ID,USB0::0x1AB1::0x0E11::DP8C184550811::INSTR
+PS_Control_Mode,USB
+
+# === WIB REMOTE (SSH) ===
+WIB_IP,192.168.121.123
+WIB_SSH_User,root
+WIB_Remote_Base,/home/root/BNL_CE_WIB_SW_QC
+WIB_CHK_DIR,/home/root/BNL_CE_WIB_SW_QC/CHK
+WIB_REPORT_DIR,/home/root/BNL_CE_WIB_SW_QC/CHK/Report
+WIB_LNP_DIR,/home/root/BNL_CE_WIB_SW_QC/tmp_ln
+WIB_QC_DIR,/home/root/BNL_CE_WIB_SW_QC/QC
+
+# === EMAIL NOTIFICATION ===
+Sender_Email,bnlr216@gmail.com
+Sender_Password,vvef tosp minf wwhf
+Receiver_Email,ke.lingyun@outlook.com
+
+# === CTS TIMING (seconds) ===
+CTS_LN2_AM,1800
+CTS_LN2_PM,1200
+CTS_LN2_Fill_Wait,1800
+CTS_Warmup_Wait,3600
+
+# === WATCHDOG ===
+Watchdog_Check_Interval,30
+
+# === DEFAULTS ===
+Default_WIB_ID,qc_debug
+Default_Comment,WIB Reception Checkout test
+SUDO_PASSWORD,216

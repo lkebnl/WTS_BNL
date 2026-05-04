@@ -1,2 +1,2 @@
-/home/dune/Documents/WIB_QC/123_04_10_2026_17_04
-123
+/home/dune/Documents/WIB_QC/BNL_WIB_V3_I0-1750-1-F_00008_04_24_2026_16_00
+BNL_WIB_V3_I0-1750-1-F_00008
