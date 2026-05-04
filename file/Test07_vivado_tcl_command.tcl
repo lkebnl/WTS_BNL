@@ -68,6 +68,6 @@ foreach rx $rx_channels {
 
 
 
-Close the connection
+# Close the connection
 close_hw_manager
 exit

@@ -388,6 +388,7 @@ time.sleep(1) # wait for boot
 
 project_dir = "/home/dune/Documents/DUNE_WIB_QC_Script"
 vivado_path = path.xilinx_path
+print(vivado_path)
 
 # === Run IBERT Initialization TCL Script ===
 print_header("IBERT Initialization")
@@ -413,7 +414,7 @@ if process.stderr and "ERROR" in process.stderr:
 print_header("IBERT BER Test Running")
 print_info("  Waiting 1000 seconds for BER accumulation...")
 print_info("  (This allows sufficient bit counting for accurate BER measurement)")
-time.sleep(10)
+time.sleep(1000)
 
 # === Run BER Measurement TCL Script ===
 print_header("BER Measurement")

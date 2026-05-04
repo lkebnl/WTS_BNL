@@ -6,3 +6,6 @@ WIB_ID,BNL_WIB_V3_I0-1750-1-F_00008
 Foam_Box_ID,https:__dbweb0.fnal.gov_cdbdev_view_component_D08100400001-00062
 SD_IMAGE_PATH,/home/dune/CE_firmware.img
 SUDO_PASSWORD,216
+REPORT_PATH,/home/dune/Documents/WIB_QC
+XILINX_PATH,/home/dune/Vivado/Vivado/2022.2/bin/vivado
+LOCAL_PATH,D:/WIB_QC/DUNE_WIB_QC_Script

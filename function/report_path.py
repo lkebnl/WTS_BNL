@@ -29,8 +29,19 @@ from datetime import datetime
 # Add parent directory to path for importing rp_dict
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Base directory for all WIB QC reports
+# Default base directory (overridable via REPORT_PATH in file/wib_info.csv)
 WIB_QC_BASE_DIR = "/home/dune/Documents/WIB_QC"
+
+
+def _get_base_dir():
+    try:
+        import file.report_dict as rp_dict
+        base = rp_dict.wib_info.get('REPORT_PATH', None)
+        if base and base.strip():
+            return base.strip()
+    except (ImportError, AttributeError):
+        pass
+    return WIB_QC_BASE_DIR
 
 # Default WIB ID for testing/debugging
 DEFAULT_WIB_ID = "qc_debug"
@@ -77,7 +88,7 @@ def init_session(wib_id=None, force_new=False):
     # Create folder name with current timestamp
     date_str = datetime.now().strftime("%m_%d_%Y_%H_%M")
     dir_name = f"{wib_id}_{date_str}"
-    report_dir = os.path.join(WIB_QC_BASE_DIR, dir_name)
+    report_dir = os.path.join(_get_base_dir(), dir_name)
 
     # Create the directory
     os.makedirs(report_dir, exist_ok=True)
@@ -170,7 +181,7 @@ def get_report_dir(wib_id=None, create=True):
 
     date_str = datetime.now().strftime("%m_%d_%Y_%H_%M")
     dir_name = f"{wib_id}_{date_str}"
-    report_dir = os.path.join(WIB_QC_BASE_DIR, dir_name)
+    report_dir = os.path.join(_get_base_dir(), dir_name)
 
     if create:
         os.makedirs(report_dir, exist_ok=True)
