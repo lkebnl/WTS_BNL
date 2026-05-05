@@ -244,6 +244,14 @@ def print_report_info():
     print(f"{'=' * 60}\n")
 
 
+def get_result_csv_path():
+    """Return the unified QC results CSV path for the current session, or None if no session."""
+    report_dir, wib_id = _read_session_file()
+    if not report_dir or not wib_id:
+        return None
+    return os.path.join(report_dir, f"WIB_{wib_id}_QC_Results.csv")
+
+
 def clear_session():
     """Clear the session file (call at end of testing if needed)."""
     session_file_path = os.path.abspath(SESSION_FILE)

@@ -5,6 +5,7 @@
 # Institute  : BNL (Brookhaven National Laboratory)
 # Repository : Public
 # Copyright  : © 2026 Lingyun Ke. All rights reserved.
+import os
 from collections import defaultdict
 
 log_fn_rp = defaultdict(dict)
@@ -16,8 +17,25 @@ Test_name_d = defaultdict(dict)
 Test_WIB_ID_d = defaultdict(dict)
 wib_info = defaultdict(dict)
 
-# Global CSV Manager instance (initialized in Test00)
-csv_manager = None
+# Global CSV Manager instance — lazily auto-attached from session in subprocesses
+# Set explicitly by WIB_QC_Detail.py; auto-attached via __getattr__ in subprocesses
+
+
+def __getattr__(name):
+    if name == 'csv_manager':
+        import sys
+        try:
+            from function.report_path import get_result_csv_path
+            csv_path = get_result_csv_path()
+            if csv_path and os.path.exists(csv_path):
+                from function.csv_manager import WIB_QC_CSV_Manager
+                mgr = WIB_QC_CSV_Manager(wib_id="", csv_filepath=csv_path, overwrite=False)
+                setattr(sys.modules[__name__], 'csv_manager', mgr)
+                return mgr
+        except Exception:
+            pass
+        return None
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 

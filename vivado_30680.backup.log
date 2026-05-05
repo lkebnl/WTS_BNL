@@ -2,13 +2,13 @@
 # Vivado v2022.2 (64-bit)
 # SW Build 3671981 on Fri Oct 14 04:59:54 MDT 2022
 # IP Build 3669848 on Fri Oct 14 08:30:02 MDT 2022
-# Start of session at: Mon May  4 17:13:26 2026
-# Process ID: 653930
+# Start of session at: Tue May  5 12:52:03 2026
+# Process ID: 30680
 # Current directory: /home/dune/Documents/DUNE_WIB_QC_Script
 # Command line: vivado -mode batch -source ./file/Test07_vivado_tcl_command.tcl
 # Log file: /home/dune/Documents/DUNE_WIB_QC_Script/vivado.log
 # Journal file: /home/dune/Documents/DUNE_WIB_QC_Script/vivado.jou
-# Running On: dune-MS-7A58, OS: Linux, CPU Frequency: 800.000 MHz, CPU Physical cores: 4, Host memory: 67300 MB
+# Running On: dune-MS-7A58, OS: Linux, CPU Frequency: 800.000 MHz, CPU Physical cores: 4, Host memory: 67299 MB
 #-----------------------------------------------------------
 source ./file/Test07_vivado_tcl_command.tcl
 # open_hw_manager
@@ -40,12 +40,12 @@ INFO: [Labtoolstcl 44-466] Opening hw_target localhost:3121/xilinx_tcf/Digilent/
 # set_property PROGRAM.FILE "/home/dune/Documents/DUNE_WIB_QC_Script/file/example_ibert_ultrascale_gth_0.bit" $device
 # program_hw_devices $device
 INFO: [Labtools 27-3164] End of startup status: HIGH
-program_hw_devices: Time (s): cpu = 00:00:22 ; elapsed = 00:00:22 . Memory (MB): peak = 1360.539 ; gain = 0.000 ; free physical = 22640 ; free virtual = 63996
+program_hw_devices: Time (s): cpu = 00:00:22 ; elapsed = 00:00:22 . Memory (MB): peak = 1336.129 ; gain = 0.000 ; free physical = 52135 ; free virtual = 67368
 # set_property PROBES.FILE "/home/dune/Documents/DUNE_WIB_QC_Script/file/example_ibert_ultrascale_gth_0.ltx" $device
 # refresh_hw_device $device
 INFO: [Labtools 27-2302] Device xczu6 (JTAG device index = 0) is programmed with a design that has 1 IBERT core(s).
 # detect_hw_sio_links
-WARNING: [Labtools 27-2268] No Links Found - Check reference clocks, PLL configuration, and board connectivity, or create links manually in order to tune settings.
+INFO: [Labtools 27-2267] Found 2 links.
 # set iberts [get_hw_sio_iberts]
 # if {[llength $iberts] == 0} {
 #     puts "No IBERT cores detected. Exiting."
@@ -86,28 +86,25 @@ IBERT RX Channel BER Report:
 #     puts "--------------------------------------"
 # }
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX
-  BER: 0.49989612356310997
-  ERROR_count: 00000E276840
-  BIT_count: 475025920
+  BER: 1.207497513058247e-07
+  ERROR_count: 000000000048
+  BIT_count: 596274520
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX
-  BER: 0.50003501479970136
-  ERROR_count: 0000185694CD
-  BIT_count: 816597560
+  BER: 8.1201233653635498e-08
+  ERROR_count: 000000000049
+  BIT_count: 899001120
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX
-  BER: 0.59929598148517882
-  ERROR_count: 000028365DEA
-  BIT_count: 1125740280
+  BER: 0.59953668833791141
+  ERROR_count: 00002AA25812
+  BIT_count: 1193058680
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX
-  BER: 0.57500016740896387
-  ERROR_count: 000032912048
-  BIT_count: 1475428760
+  BER: 0.57500031024155962
+  ERROR_count: 000034EA64BC
+  BIT_count: 1543958200
 --------------------------------------
-# Close the connection
-invalid command name "Close"
-    while executing
-"Close the connection"
-    (file "./file/Test07_vivado_tcl_command.tcl" line 71)
-INFO: [Common 17-206] Exiting Vivado at Mon May  4 17:14:02 2026...
+# close_hw_manager
+# exit
+INFO: [Common 17-206] Exiting Vivado at Tue May  5 12:52:40 2026...

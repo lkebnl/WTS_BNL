@@ -30,13 +30,14 @@ class WIB_QC_CSV_Manager:
     为每个测试项目预定义固定行，支持增量更新
     """
 
-    def __init__(self, wib_id, csv_filepath=None):
+    def __init__(self, wib_id, csv_filepath=None, overwrite=True):
         """
         初始化CSV管理器
 
         Args:
             wib_id: WIB序列号或ID
             csv_filepath: CSV文件路径，如果未指定则自动生成
+            overwrite: True = 创建/覆盖文件; False = 附加到已有文件（子进程用）
         """
         self.wib_id = wib_id
 
@@ -46,11 +47,13 @@ class WIB_QC_CSV_Manager:
         else:
             self.csv_filepath = csv_filepath
 
-        # 确保report目录存在
-        os.makedirs(os.path.dirname(self.csv_filepath), exist_ok=True)
+        # 确保目录存在
+        os.makedirs(os.path.dirname(os.path.abspath(self.csv_filepath)), exist_ok=True)
 
-        # 初始化CSV结构
-        self._initialize_csv()
+        if overwrite or not os.path.exists(self.csv_filepath):
+            self._initialize_csv()
+        else:
+            print(f"✓ CSV attached: {self.csv_filepath}")
 
     def _initialize_csv(self):
         """初始化CSV文件，创建所有测试项目的固定行结构"""

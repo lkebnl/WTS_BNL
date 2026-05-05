@@ -12,10 +12,13 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import file.report_dict as rd
-from function.report_path import init_session
+from function.report_path import init_session, get_result_csv_path
+from function.csv_manager import WIB_QC_CSV_Manager
 from function.session_info import init_session_info
 import csv
 import subprocess
+import sys as _sys
+_PY = _sys.executable  # use the same interpreter that's running this script
 import time
 from datetime import datetime
 import function.Rigol_DP800 as rigol
@@ -157,6 +160,15 @@ print(csv_data)
 # force_new=True ensures a fresh session even if one exists
 report_dir = init_session(force_new=True)
 
+# Create unified QC results CSV in the session report directory
+csv_path = get_result_csv_path()
+rd.csv_manager = WIB_QC_CSV_Manager(wib_id=WIB_id_0, csv_filepath=csv_path)
+rd.csv_manager.update_wib_info(
+    tester=input_name,
+    test_site=csv_data.get('test_site', 'BNL'),
+    comment=csv_data.get('comment', '')
+)
+
 # Initialize session info - stores all metadata for subprocesses
 init_session_info(
     wib_id=WIB_id_0,
@@ -203,47 +215,47 @@ watchdog_proc = subprocess.Popen(
 )
 
 update_heartbeat("Test01_Serial_TCPIP_Communication", timeout_minutes=7)
-subprocess.run(["python", "./component/Test01_Serial_TCPIP_Communication.py"])
+subprocess.run([_PY,"./component/Test01_Serial_TCPIP_Communication.py"])
 
 update_heartbeat("Test02_Calibration_Path_Control", timeout_minutes=7)
-subprocess.run(["python", "./component/Test02_Calibration_Path_Control.py"])
+subprocess.run([_PY,"./component/Test02_Calibration_Path_Control.py"])
 
 update_heartbeat("Test03_Power_Rail_1V", timeout_minutes=7)
-subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_1V.py"])
+subprocess.run([_PY,"./component/Test03_power_rail_for_FEMB_1V.py"])
 
 update_heartbeat("Test03_Power_Rail_2V", timeout_minutes=7)
-subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_2V.py"])
+subprocess.run([_PY,"./component/Test03_power_rail_for_FEMB_2V.py"])
 
 update_heartbeat("Test03_Power_Rail_3V", timeout_minutes=7)
-subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_3V.py"])
+subprocess.run([_PY,"./component/Test03_power_rail_for_FEMB_3V.py"])
 
 update_heartbeat("Test03_Power_Rail_4V", timeout_minutes=7)
-subprocess.run(["python", "./component/Test03_power_rail_for_FEMB_4V.py"])
+subprocess.run([_PY,"./component/Test03_power_rail_for_FEMB_4V.py"])
 
 update_heartbeat("Test0400_WIB_FEMB_Pulse_Slot0", timeout_minutes=7)
-subprocess.run(["python", "./component/Test0400_WIB_FEMB_Pulse.py"])
+subprocess.run([_PY,"./component/Test0400_WIB_FEMB_Pulse.py"])
 
 update_heartbeat("Test0401_WIB_FEMB_Pulse_Slot1", timeout_minutes=7)
-subprocess.run(["python", "./component/Test0401_WIB_FEMB_Pulse.py"])
+subprocess.run([_PY,"./component/Test0401_WIB_FEMB_Pulse.py"])
 
 update_heartbeat("Test0402_WIB_FEMB_Pulse_Slot2", timeout_minutes=7)
-subprocess.run(["python", "./component/Test0402_WIB_FEMB_Pulse.py"])
+subprocess.run([_PY,"./component/Test0402_WIB_FEMB_Pulse.py"])
 
 update_heartbeat("Test0403_WIB_FEMB_Pulse_Slot3", timeout_minutes=7)
-subprocess.run(["python", "./component/Test0403_WIB_FEMB_Pulse.py"])
+subprocess.run([_PY,"./component/Test0403_WIB_FEMB_Pulse.py"])
 
 update_heartbeat("Test05_Search_I2C", timeout_minutes=7)
-subprocess.run(["python", "./component/Test05_Search_I2C.py"])
+subprocess.run([_PY,"./component/Test05_Search_I2C.py"])
 
 update_heartbeat("Test052_I2C_Sensor_Info", timeout_minutes=7)
-subprocess.run(["python", "./component/Test052_getInfoFromI2C.py"])
+subprocess.run([_PY,"./component/Test052_getInfoFromI2C.py"])
 
 update_heartbeat("Test06_PTB_Interface", timeout_minutes=7)
-subprocess.run(["python", "./component/Test06_PTB_Interface_Path.py"])
+subprocess.run([_PY,"./component/Test06_PTB_Interface_Path.py"])
 
 print("Test07   IBERT Test Begin ...")
 update_heartbeat("Test07_IBERT", timeout_minutes=20)
-subprocess.run(["python", "./component/Test07_IBERT.py"])
+subprocess.run([_PY,"./component/Test07_IBERT.py"])
 
 pop.show_image_popup(
     title="Page 11: Production SD Card Test",
@@ -261,10 +273,10 @@ confirm_function(
 )
 
 # update_heartbeat("Item0801_copy_ssh", timeout_minutes=2)
-# subprocess.run(["python", "./component/Test0801_copy_ssh.py"])
+# subprocess.run([_PY,"./component/Test0801_copy_ssh.py"])
 
 update_heartbeat("Test0803_CTS_Checkout", timeout_minutes=8)
-subprocess.run(["python", "./component/Test0803_CTS_Checkout.py"])
+subprocess.run([_PY,"./component/Test0803_CTS_Checkout.py"])
 
 psu = rigol.RigolDP800()
 psu.safe_power_off()
@@ -272,7 +284,7 @@ psu.close()
 
 
 update_heartbeat("Final_Report", timeout_minutes=7)
-subprocess.run(["python", "./component/Final_Report.py"])
+subprocess.run([_PY,"./component/Final_Report.py"])
 
 stop_watchdog()
 t2 = time.time()

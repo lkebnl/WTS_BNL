@@ -146,7 +146,7 @@ TEST_ITEMS = [
     {
         'id': 'test052',
         'name': 'Test052: I2C Sensor Information',
-        'report_base': 'Test05_I2C_Device_report',
+        'report_base': 'Test052_I2C_Sensor_report',
         'rp_key': 'item052'
     },
     {
