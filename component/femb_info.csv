@@ -6,12 +6,12 @@ SLOT3,test4
 comment,Checkout test
 test_site,BNL
 toy_TPC,y
-top_path,/home/dune/Documents/data
+top_path,/home/dune/Documents/WIB_QC/BNL_WIB_V3_I0-1750-1-F_00008_05_05_2026_14_07
 Tech_site_email,bnlr216@gmail.com
 Tech_receiver,ke.lingyun@outlook.com
 Test_Site,BNL
 Tech_Coordinator,LKE
-QC_data_root_folder,/home/dune/Documents/data
+QC_data_root_folder,/home/dune/Documents/WIB_QC/BNL_WIB_V3_I0-1750-1-F_00008_05_05_2026_14_07
 Rigol_PS_for_WIB,True
 Rigol_PS_ID,USB0::0x1AB1::0x0E11::DP8C184550811::INSTR
 CTS_LN2_AM,1800

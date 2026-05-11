@@ -130,6 +130,13 @@ def scan_femb_qr_codes():
 
 def save_config(tester_name, tester_email, femb_ids, init_config):
     """Save configuration to CSV file with all fields matching femb_info_implement.csv"""
+    # Use the active report session dir so data lands alongside reports.
+    # Falls back to the CSV value for standalone runs (no active session).
+    try:
+        data_root = get_report_dir()
+    except Exception:
+        data_root = init_config.get('QC_data_root_folder', '/home/dune/Documents/data')
+
     csv_data = {
         # User input
         'tester': tester_name,
@@ -141,12 +148,12 @@ def save_config(tester_name, tester_email, femb_ids, init_config):
         # From init_setup.csv with defaults
         'test_site': init_config.get('Test_Site', 'BNL'),
         'toy_TPC': init_config.get('toy_TPC', 'y'),
-        'top_path': init_config.get('QC_data_root_folder', '/home/dune/Documents/data'),
+        'top_path': data_root,
         'Tech_site_email': tester_email or init_config.get('Tech_site_email', ''),
         'Tech_receiver': init_config.get('Tech_receiver', 'lke@bnl.gov'),
         'Test_Site': init_config.get('Test_Site', 'BNL'),
         'Tech_Coordinator': init_config.get('Tech_Coordinator', ''),
-        'QC_data_root_folder': init_config.get('QC_data_root_folder', '/home/dune/Documents/data'),
+        'QC_data_root_folder': data_root,
         'Rigol_PS_for_WIB': init_config.get('Rigol_PS_for_WIB', 'True'),
         'Rigol_PS_ID': init_config.get('Rigol_PS_ID', ''),
         'CTS_LN2_AM': init_config.get('CTS_LN2_AM', '1800'),

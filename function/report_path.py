@@ -24,6 +24,7 @@ Report Structure:
 
 import os
 import sys
+import subprocess
 from datetime import datetime
 
 # Add parent directory to path for importing rp_dict
@@ -258,6 +259,57 @@ def clear_session():
     if os.path.exists(session_file_path):
         os.remove(session_file_path)
         print(f"[path_debug] Session file cleared: {session_file_path}")
+
+
+def sync_session_to_network():
+    """
+    Rsync the current session report directory to WIB_Network_Upload_Path
+    from wib_info.csv. Falls back to shutil if rsync is not installed.
+    Prints a warning and returns silently on any error so the test run is not interrupted.
+    """
+    try:
+        import file.report_dict as rp_dict
+        network_base = rp_dict.wib_info.get('WIB_Network_Upload_Path', None)
+    except (ImportError, AttributeError):
+        network_base = None
+
+    if not network_base or not str(network_base).strip():
+        print("[sync] WIB_Network_Upload_Path not configured — skipping network sync.")
+        return
+
+    session_dir, _ = _read_session_file()
+    if not session_dir or not os.path.exists(session_dir):
+        print("[sync] No active session directory found — skipping network sync.")
+        return
+
+    network_base = str(network_base).strip()
+    dest = os.path.join(network_base, os.path.basename(session_dir))
+
+    print(f"\n{'=' * 60}")
+    print("SYNCING REPORTS TO NETWORK")
+    print(f"{'=' * 60}")
+    print(f"  Source : {session_dir}/")
+    print(f"  Dest   : {dest}/")
+
+    try:
+        os.makedirs(dest, exist_ok=True)
+        result = subprocess.run(
+            ["rsync", "-av", session_dir + "/", dest + "/"],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print(f"  [sync] Network sync complete.")
+        else:
+            print(f"  [sync] rsync error (rc={result.returncode}): {result.stderr.strip()}")
+    except FileNotFoundError:
+        print("  [sync] rsync not found — falling back to shutil...")
+        import shutil
+        shutil.copytree(session_dir, dest, dirs_exist_ok=True)
+        print("  [sync] Network sync complete (shutil).")
+    except Exception as e:
+        print(f"  [sync] Network sync failed: {e}")
+
+    print(f"{'=' * 60}\n")
 
 
 # Legacy alias for backward compatibility

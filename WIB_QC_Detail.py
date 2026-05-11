@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import file.report_dict as rd
-from function.report_path import init_session, get_result_csv_path
+from function.report_path import init_session, get_result_csv_path, sync_session_to_network
 from function.csv_manager import WIB_QC_CSV_Manager
 from function.session_info import init_session_info
 import csv
@@ -286,6 +286,7 @@ psu.close()
 update_heartbeat("Final_Report", timeout_minutes=7)
 subprocess.run([_PY,"./component/Final_Report.py"])
 
+sync_session_to_network()
 stop_watchdog()
 t2 = time.time()
 test_duration = t2 - t1

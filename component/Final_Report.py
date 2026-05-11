@@ -18,6 +18,7 @@ import os
 import base64
 import re
 from datetime import datetime, timezone
+import weasyprint as weasyprint
 
 # Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
