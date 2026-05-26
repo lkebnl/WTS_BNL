@@ -1,8 +1,8 @@
-﻿tester,Shivam
+﻿tester,lke
 SLOT0,null
 test_site,BNL
 comment,QC test
-WIB_ID,BNL_WIB_V3_10-1750-1-F_00008
+WIB_ID,BNL_WIB_V3_I0-1750-1-F_00008
 Foam_Box_ID,https:__dbweb0.fnal.gov_cdbdev_view_component_D08100400001-00062
 SD_IMAGE_PATH,/home/dune/CE_firmware.img
 SUDO_PASSWORD,216

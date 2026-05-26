@@ -496,6 +496,49 @@ else:
     tests_failed += 1
     test_failures.append("Eye Scan Script")
 
+# === Parse Zynq U+ Device Info from Eye Scan Output ===
+print_header("Zynq U+ Device Information")
+_zynq_tag_map = [
+    ("ZYNQ_PART:",              "Zynq_Part"),
+    ("ZYNQ_IDCODE:",            "Zynq_IDCODE"),
+    ("ZYNQ_CONFIG_DONE:",       "Zynq_PL_Config_Done"),
+    ("ZYNQ_DNA:",               "Zynq_DNA"),
+    ("ZYNQ_JTAG_DEV_COUNT:",    "Zynq_JTAG_Device_Count"),
+    ("ZYNQ_PS_AXIS_FOUND:",     "Zynq_PS_AXI_Master"),
+    ("ZYNQ_PS_BOOT_MODE:",      "Zynq_PS_Boot_Mode"),
+    ("ZYNQ_PS_BOOT_MODE_POR:",  "Zynq_PS_Boot_Mode_POR"),
+    ("ZYNQ_PS_CSU_IDCODE:",     "Zynq_PS_CSU_IDCODE"),
+    ("ZYNQ_PS_CSU_VERSION:",    "Zynq_PS_CSU_Version"),
+    ("ZYNQ_PS_CSU_STATUS:",     "Zynq_PS_CSU_Status"),
+    ("ZYNQ_PS_ACCESS:",         "Zynq_PS_Access_Note"),
+    ("ZYNQ_PART_A_ERROR:",      "Zynq_PartA_Error"),
+    ("ZYNQ_PS_ERROR:",          "Zynq_PartC_Error"),
+]
+_in_zynq = False
+for _line in process.stdout.splitlines():
+    _s = _line.strip()
+    if _s == "ZYNQ_INFO_START":
+        _in_zynq = True
+        continue
+    if _s == "ZYNQ_INFO_END":
+        _in_zynq = False
+        continue
+    if not _in_zynq:
+        continue
+    _matched = False
+    for _tag, _key in _zynq_tag_map:
+        if _s.startswith(_tag):
+            _val = _s[len(_tag):].strip()
+            rp_dict.log07_ibert[_key] = _val
+            print_info(f"  {_key}: {_val}")
+            _matched = True
+            break
+    if not _matched and _s.startswith("ZYNQ_JTAG_DEV_") and not _s.startswith("ZYNQ_JTAG_DEV_COUNT"):
+        _parts = _s.split(":", 1)
+        if len(_parts) == 2:
+            _idx = _parts[0].replace("ZYNQ_JTAG_DEV_", "")
+            rp_dict.log07_ibert[f"Zynq_JTAG_Dev_{_idx}"] = _parts[1].strip()
+
 # Parse hex values (handle both hex string and decimal)
 try:
     x0y4_error_count = int(x0y4_error_str, 16)  # Parse as hexadecimal
@@ -700,20 +743,22 @@ print(f"Test Result: {overall_result} (suffix: {result_suffix})")
 #     print(f"  {key}: {value}")
 # print("=" * 60 + "\n")
 
-# Build table rows with status highlighting
+# Split log07_ibert into IBERT results and Zynq device info
+_ibert_items = {k: v for k, v in rp_dict.log07_ibert.items() if not k.startswith("Zynq_")}
+_zynq_items  = {k: v for k, v in rp_dict.log07_ibert.items() if k.startswith("Zynq_")}
+
+# Build IBERT table rows with status highlighting
 rows = ""
-if len(rp_dict.log07_ibert) == 0:
+if len(_ibert_items) == 0:
     rows = '<tr><td colspan="2" style="text-align: center; color: red;">No data captured - rp_dict.log07_ibert is empty</td></tr>\n'
 else:
-    for key, value in rp_dict.log07_ibert.items():
-        # Add color styling for Decision and Status fields
+    for key, value in _ibert_items.items():
         if 'Decision' in key or 'Status' in key:
             if value == "PASS":
                 value_html = f'<span style="color: green; font-weight: bold;">{value}</span>'
             else:
                 value_html = f'<span style="color: red; font-weight: bold;">{value}</span>'
         elif 'ERROR_count_Result' in key:
-            # Highlight error count results - red if not 0, green if 0
             try:
                 if int(value) != 0:
                     value_html = f'<span style="color: red; font-weight: bold;">{value}</span>'
@@ -723,7 +768,16 @@ else:
                 value_html = str(value)
         else:
             value_html = str(value)
-        rows += f"<tr><td>{key}</td><td>{value}</td></tr>\n"
+        rows += f"<tr><td>{key}</td><td>{value_html}</td></tr>\n"
+
+# Build Zynq device info table rows
+zynq_rows = ""
+if _zynq_items:
+    for key, value in _zynq_items.items():
+        clean_key = key.replace("Zynq_", "").replace("_", " ")
+        zynq_rows += f"<tr><td>{clean_key}</td><td>{value}</td></tr>\n"
+else:
+    zynq_rows = '<tr><td colspan="2" style="text-align: center; color: gray;">Device info not available</td></tr>\n'
 
 # Determine overall status for header styling
 overall_status = rp_dict.log07_ibert.get('Overall_Test_Status', 'UNKNOWN')
@@ -808,6 +862,19 @@ html_content = f"""
         </thead>
         <tbody>
             {rows}
+        </tbody>
+    </table>
+
+    <h3 style="text-align: center; margin-top: 30px;">Zynq U+ Device Information</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Property</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {zynq_rows}
         </tbody>
     </table>
 
