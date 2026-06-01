@@ -20,7 +20,7 @@ import datetime
 
 
 import function.Rigol_DP800 as rigol
-from function.report_path import get_report_path, init_report_session
+from function.report_path import get_report_path, init_report_session, get_result_csv_path, get_report_dir
 from function.session_info import get_session_info, get_report_filename
 from function.ping_host import ping_host
 import file.report_dict as rp_dict
@@ -292,6 +292,22 @@ def validate_fp_bk_interface(value, expected_value, result_dict=None):
 ## =========================================
 # initial
 print_header("A_RT06: PTB Interface Path")
+
+# Get session info (from WIB_QC_Detail.py or defaults for standalone run)
+session_info = get_session_info()
+wib_id = session_info.get('WIB_ID', 'standalone_test')
+
+# Check if CSV exists in report folder; create if missing, attach if found
+csv_path = get_result_csv_path()
+if csv_path is None:
+    report_dir = get_report_dir()
+    csv_path = os.path.join(report_dir, f"WIB_{wib_id}_QC_Results.csv")
+if not os.path.exists(csv_path):
+    print(f"\nCSV not found — creating: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=True)
+elif rp_dict.csv_manager is None:
+    print(f"\nCSV found — attaching: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=False)
 
 # Result dictionary for error logging
 result_dict = {"error_log": []}

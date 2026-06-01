@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from function.cls_udp import CLS_UDP
 from function.tcp_cfg import TCP_CFG
 from function.raw_convertor import RAW_CONV
-from function.report_path import get_report_path, init_report_session
+from function.report_path import get_report_path, init_report_session, get_result_csv_path, get_report_dir
 from function.session_info import get_session_info, get_report_filename
 import datetime
 import file.report_dict as rp_dict
@@ -282,6 +282,19 @@ print("-" * 40)
 
 # Initialize report session (uses session file if available)
 init_report_session(wib_id)
+
+# Check if CSV exists in report folder; create if not
+csv_path = get_result_csv_path()
+if csv_path is None:
+    report_dir = get_report_dir()
+    csv_path = os.path.join(report_dir, f"WIB_{wib_id}_QC_Results.csv")
+
+if not os.path.exists(csv_path):
+    print(f"\nCSV not found — creating: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=True)
+elif rp_dict.csv_manager is None:
+    print(f"\nCSV found — attaching: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=False)
 
 print_header("Test02: Calibration Path Control - Power On")
 print("Turn FM on")

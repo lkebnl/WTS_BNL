@@ -22,8 +22,10 @@ import os
 # Add the parent directory to sys.path so 'function' can be imported
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import function.Rigol_DP800 as rigol
-from function.report_path import get_test_subdir, init_report_session
+from function.report_path import get_test_subdir, init_report_session, get_result_csv_path, get_report_dir
 from function.session_info import get_session_info
+from function.csv_manager import WIB_QC_CSV_Manager
+import file.report_dict as rp_dict
 from function.cls_udp import CLS_UDP
 from function.tcp_cfg import TCP_CFG
 import struct
@@ -310,6 +312,22 @@ def safe_restart_wib_service(max_retries=5, retry_delay=5):
 
 
 # print("\033[35m" + "A_RT03_01 : Power Rail" + "\033[0m")
+
+# Get session info (from WIB_QC_Detail.py or defaults for standalone run)
+session_info = get_session_info()
+wib_id = session_info.get('WIB_ID', 'standalone_test')
+
+# Check if CSV exists in report folder; create if missing, attach if found
+csv_path = get_result_csv_path()
+if csv_path is None:
+    report_dir = get_report_dir()
+    csv_path = os.path.join(report_dir, f"WIB_{wib_id}_QC_Results.csv")
+if not os.path.exists(csv_path):
+    print(f"\nCSV not found — creating: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=True)
+elif rp_dict.csv_manager is None:
+    print(f"\nCSV found — attaching: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=False)
 
 # Initialize timing dictionary
 timing_dict = {}
@@ -777,10 +795,17 @@ for fembi in [0]:
     print("Report is saved at {}".format(result_dict["save_dir"]))
 
     # Set report path for final report integration
-    import file.report_dict as rp_dict
-    # Extract folder name from save_dir and create relative path
     folder_name = os.path.basename(result_dict["save_dir"].rstrip('/'))
     rp_dict.set_report_path('item041', folder_name + '/result.html')
+
+    # Write per-phase results to QC CSV
+    if rp_dict.csv_manager:
+        rp_dict.csv_manager.batch_update([
+            {"item_id": "T04_00", "value": result_dict.get("seoff_test_status", "UNKNOWN"), "status": result_dict.get("seoff_test_status", "UNKNOWN")},
+            {"item_id": "T04_01", "value": result_dict.get("seon_test_status",  "UNKNOWN"), "status": result_dict.get("seon_test_status",  "UNKNOWN")},
+            {"item_id": "T04_02", "value": result_dict.get("diff_test_status",  "UNKNOWN"), "status": result_dict.get("diff_test_status",  "UNKNOWN")},
+            {"item_id": "T04_03", "value": result_dict.get("data_acq_status",   "UNKNOWN"), "status": result_dict.get("data_acq_status",   "UNKNOWN")},
+        ])
 
 print("Turn Power Supply off")
 time.sleep(0.5)

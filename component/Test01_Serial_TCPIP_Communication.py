@@ -21,7 +21,8 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from function.ping_host import ping_host
-from function.report_path import get_report_path, init_report_session, get_wib_id
+from function.report_path import get_report_path, init_report_session, get_wib_id, get_result_csv_path, get_report_dir
+from function.csv_manager import WIB_QC_CSV_Manager
 from function.session_info import get_session_info, get_report_filename
 import file.report_dict as rp_dict
 import function.Rigol_DP800 as rigol
@@ -433,6 +434,19 @@ def main():
 
     # Initialize report session (uses session file if available)
     init_report_session(wib_id)
+
+    # Check if CSV exists in report folder; create if not
+    csv_path = get_result_csv_path()
+    if csv_path is None:
+        report_dir = get_report_dir()
+        csv_path = os.path.join(report_dir, f"WIB_{wib_id}_QC_Results.csv")
+
+    if not os.path.exists(csv_path):
+        print(f"\nCSV not found — creating: {csv_path}")
+        rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=True)
+    elif rp_dict.csv_manager is None:
+        print(f"\nCSV found — attaching: {csv_path}")
+        rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=False)
 
     # Print header
     print_header("A_RT01 : Serial_TCPIP_Communication Test")

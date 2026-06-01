@@ -189,6 +189,16 @@ class WIB_QC_CSV_Manager:
         rows.append(["T03_4V_99", "Test_Duration", "", "s", "", "", "", ""])
         rows.append([])
 
+        # ========== Test04: FEMB Pulse Test ==========
+        rows.append(["=== Test04: FEMB Pulse Test ==="])
+        rows.append(["Item", "Parameter", "Value", "Unit", "Status", "Min", "Max", "Timestamp"])
+        for slot in range(4):
+            rows.append([f"T04_{slot}0", f"Slot{slot}_SEOFF_Power", "", "", "", "", "", ""])
+            rows.append([f"T04_{slot}1", f"Slot{slot}_SEON_Power",  "", "", "", "", "", ""])
+            rows.append([f"T04_{slot}2", f"Slot{slot}_DIFF_Power",  "", "", "", "", "", ""])
+            rows.append([f"T04_{slot}3", f"Slot{slot}_DataAcq",     "", "", "", "", "", ""])
+        rows.append([])
+
         # ========== Test05: I2C Device Search ==========
         rows.append(["=== Test05: I2C Device Search ==="])
         rows.append(["Item", "Parameter", "Value", "Unit", "Status", "Min", "Max", "Timestamp"])
@@ -301,6 +311,29 @@ class WIB_QC_CSV_Manager:
         rows.append(["T052_65", "LTC2990_0x4E_V0.9_I", "", "A", "", "", "", ""])
 
         rows.append(["T052_99", "Test_Duration", "", "s", "", "", "", ""])
+        rows.append([])
+
+        # ========== Test07: IBERT ==========
+        rows.append(["=== Test07: IBERT (Integrated Bit Error Ratio Test) ==="])
+        rows.append(["Item", "Parameter", "Value", "Unit", "Status", "Min", "Max", "Timestamp"])
+        rows.append(["T07_00", "WIB_Power_Ch1_V",    "", "V",  "", "11.0", "13.0", ""])
+        rows.append(["T07_01", "WIB_Power_Ch1_I",    "", "A",  "", "",     "",     ""])
+        rows.append(["T07_02", "WIB_Power_Ch2_V",    "", "V",  "", "11.0", "13.0", ""])
+        rows.append(["T07_03", "WIB_Power_Ch2_I",    "", "A",  "", "",     "",     ""])
+        rows.append(["T07_10", "IBERT_Init_Script",  "", "",   "", "",     "",     ""])
+        rows.append(["T07_11", "BER_Meas_Script",    "", "",   "", "",     "",     ""])
+        rows.append(["T07_20", "X0Y4_Total_BER",     "", "",   "", "",     "",     ""])
+        rows.append(["T07_21", "X0Y4_ERROR_count",   "", "",   "", "0",    "0",    ""])
+        rows.append(["T07_22", "X0Y4_BIT_count",     "", "",   "", "",     "",     ""])
+        rows.append(["T07_23", "X0Y4_Decision",      "", "",   "", "",     "",     ""])
+        rows.append(["T07_30", "X0Y5_Total_BER",     "", "",   "", "",     "",     ""])
+        rows.append(["T07_31", "X0Y5_ERROR_count",   "", "",   "", "0",    "0",    ""])
+        rows.append(["T07_32", "X0Y5_BIT_count",     "", "",   "", "",     "",     ""])
+        rows.append(["T07_33", "X0Y5_Decision",      "", "",   "", "",     "",     ""])
+        rows.append(["T07_40", "EyeScan_Script",     "", "",   "", "",     "",     ""])
+        rows.append(["T07_41", "EyeScan_X0Y4_File",  "", "",   "", "",     "",     ""])
+        rows.append(["T07_42", "EyeScan_X0Y5_File",  "", "",   "", "",     "",     ""])
+        rows.append(["T07_99", "Test_Duration",      "", "s",  "", "",     "",     ""])
         rows.append([])
 
         # ========== Footer ==========

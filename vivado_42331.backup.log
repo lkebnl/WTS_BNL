@@ -2,15 +2,15 @@
 # Vivado v2022.2 (64-bit)
 # SW Build 3671981 on Fri Oct 14 04:59:54 MDT 2022
 # IP Build 3669848 on Fri Oct 14 08:30:02 MDT 2022
-# Start of session at: Mon May 11 18:04:38 2026
-# Process ID: 224712
+# Start of session at: Mon Jun  1 17:34:24 2026
+# Process ID: 42331
 # Current directory: /home/dune/Documents/DUNE_WIB_QC_Script
-# Command line: vivado -mode batch -source ./file/Test07_vivado_tcl_command.tcl
+# Command line: vivado -mode batch -source file/tcl_02.tcl
 # Log file: /home/dune/Documents/DUNE_WIB_QC_Script/vivado.log
 # Journal file: /home/dune/Documents/DUNE_WIB_QC_Script/vivado.jou
-# Running On: dune-MS-7A58, OS: Linux, CPU Frequency: 800.000 MHz, CPU Physical cores: 4, Host memory: 67299 MB
+# Running On: dune-MS-7A58, OS: Linux, CPU Frequency: 4200.305 MHz, CPU Physical cores: 4, Host memory: 67299 MB
 #-----------------------------------------------------------
-source ./file/Test07_vivado_tcl_command.tcl
+source file/tcl_02.tcl
 # open_hw_manager
 # connect_hw_server
 INFO: [Labtools 27-2285] Connecting to hw_server url TCP:localhost:3121
@@ -34,19 +34,15 @@ INFO: [Labtools 27-2221] Launch Output:
 
 
 
+# open_hw
+WARNING: 'open_hw' is deprecated, please use 'open_hw_manager' instead.
 # open_hw_target
 INFO: [Labtoolstcl 44-466] Opening hw_target localhost:3121/xilinx_tcf/Digilent/210249A74687
-CRITICAL WARNING: [Labtools 27-3421] xczu6_0 PL Power Status OFF, cannot connect PL TAP.  Check POR_B signal.
 # set device [lindex [get_hw_devices] 0]
-# set_property PROGRAM.FILE "/home/dune/Documents/DUNE_WIB_QC_Script/file/example_ibert_ultrascale_gth_0.bit" $device
-# program_hw_devices $device
-INFO: [Labtools 27-3164] End of startup status: HIGH
-program_hw_devices: Time (s): cpu = 00:00:22 ; elapsed = 00:00:22 . Memory (MB): peak = 1360.543 ; gain = 0.000 ; free physical = 22606 ; free virtual = 66667
-# set_property PROBES.FILE "/home/dune/Documents/DUNE_WIB_QC_Script/file/example_ibert_ultrascale_gth_0.ltx" $device
 # refresh_hw_device $device
 INFO: [Labtools 27-2302] Device xczu6 (JTAG device index = 0) is programmed with a design that has 1 IBERT core(s).
 # detect_hw_sio_links
-INFO: [Labtools 27-2267] Found 1 links.
+INFO: [Labtools 27-2267] Found 2 links.
 # set iberts [get_hw_sio_iberts]
 # if {[llength $iberts] == 0} {
 #     puts "No IBERT cores detected. Exiting."
@@ -81,31 +77,34 @@ IBERT RX Channel BER Report:
 #     #Bit Errors second BEN
 #     #Total Received Bits second TCB
 #     puts "RX Channel First: $rx"
-#     puts "  BER: $ber"
-#     puts "  ERROR_count: $error_count"
-#     puts "  BIT_count: $bit_count"
+#     puts " $rx Total_BER: $ber"
+#     puts " $rx Total_ERROR_count: $error_count"
+#     puts " $rx Total_BIT_count: $bit_count"
 #     puts "--------------------------------------"
 # }
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX
-  BER: 0.062855151613725957
-  ERROR_count: 000001D0312F
-  BIT_count: 483990480
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_BER: 9.8718179153789583e-14
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_ERROR_count: 000000000000
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_BIT_count: 10129846483920
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX
-  BER: 2.022840518708799e-06
-  ERROR_count: 000000000662
-  BIT_count: 807775000
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_BER: 9.8715176160268773e-14
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_ERROR_count: 000000000000
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_BIT_count: 10130154641840
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX
-  BER: 0.57403720966886029
-  ERROR_count: 000026B19EE2
-  BIT_count: 1130893160
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_BER: 0.57499989006645857
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_ERROR_count: 054B502FD40B
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_BIT_count: 10123525410000
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX
-  BER: 0.57500001026792469
-  ERROR_count: 000032114C7C
-  BIT_count: 1460859960
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_BER: 0.57500000006158325
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_ERROR_count: 0550E10CDDFD
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_BIT_count: 10165097806600
 --------------------------------------
-# close_hw_manager
-# exit
-INFO: [Common 17-206] Exiting Vivado at Mon May 11 18:05:15 2026...
+# Close the connection
+invalid command name "Close"
+    while executing
+"Close the connection"
+    (file "file/tcl_02.tcl" line 52)
+INFO: [Common 17-206] Exiting Vivado at Mon Jun  1 17:34:39 2026...

@@ -16,8 +16,9 @@ import time
 import file.report_dict as rp_dict
 import function.tcp as tcp_con
 from datetime import datetime
-from function.report_path import get_report_path
-from function.session_info import get_report_filename
+from function.report_path import get_report_path, get_result_csv_path, get_report_dir
+from function.session_info import get_report_filename, get_session_info
+from function.csv_manager import WIB_QC_CSV_Manager
 
 SERVER_IP = "192.168.121.1"
 PORT = 23  # Change if necessary (23 for Telnet, 22 for SSH)
@@ -159,6 +160,23 @@ def read_ltc2499_all_temperatures(connection, bus, addr, channels, vref=2.578):
     return results
 
 print("\033[35m" + "A_RT05_02 : I2C Sensor Information" + "\033[0m")
+
+# Get session info (from WIB_QC_Detail.py or defaults for standalone run)
+session_info = get_session_info()
+wib_id = session_info.get('WIB_ID', 'standalone_test')
+
+# Check if CSV exists in report folder; create if missing, attach if found
+csv_path = get_result_csv_path()
+if csv_path is None:
+    report_dir = get_report_dir()
+    csv_path = os.path.join(report_dir, f"WIB_{wib_id}_QC_Results.csv")
+if not os.path.exists(csv_path):
+    print(f"\nCSV not found — creating: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=True)
+elif rp_dict.csv_manager is None:
+    print(f"\nCSV found — attaching: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=False)
+
 t1 = time.time()
 
 time.sleep(2)
@@ -175,7 +193,7 @@ psu.set_channel(1, 12.0, 3.0, on=True)
 psu.set_channel(2, 12.0, 3.0, on=True)
 time.sleep(10)
 v1, c1 = psu.measure(1)
-v2, c2 = psu.measure(1)
+v2, c2 = psu.measure(2)
 time.sleep(1)
 
 time.sleep(30) # wait for boot
@@ -484,6 +502,61 @@ msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 current_5 = ((((raw & 0x3fff)) * 0.000019075) / 0.1)
 rp_dict.log04_wib['LTC2990_0x4e_V0.9_c'] = current_5
+
+# Write all sensor results to QC CSV
+if rp_dict.csv_manager:
+    v1_status = "PASS" if 11.0 <= v1 <= 13.0 else "FAIL"
+    v2_status = "PASS" if 11.0 <= v2 <= 13.0 else "FAIL"
+    total_c_status = "PASS" if 1.1 <= (c1 + c2) <= 1.9 else "FAIL"
+    updates = [
+        {"item_id": "T052_00", "value": round(v1, 3), "status": v1_status},
+        {"item_id": "T052_01", "value": round(c1, 3), "status": total_c_status},
+        {"item_id": "T052_02", "value": round(v2, 3), "status": v2_status},
+        {"item_id": "T052_03", "value": round(c2, 3), "status": total_c_status},
+    ]
+    sensor_map = [
+        ("T052_10", "LTC2499_FEMB0_Temperature"),
+        ("T052_11", "LTC2499_FEMB1_Temperature"),
+        ("T052_12", "LTC2499_FEMB2_Temperature"),
+        ("T052_13", "LTC2499_FEMB3_Temperature"),
+        ("T052_14", "LTC2499_WIB1_Temperature"),
+        ("T052_15", "LTC2499_WIB2_Temperature"),
+        ("T052_16", "LTC2499_WIB3_Temperature"),
+        ("T052_20", "LINA226_Vbus"),
+        ("T052_21", "INA226_Current"),
+        ("T052_30", "AD7414_0x4A_temperature"),
+        ("T052_31", "AD7414_0x49_temperature"),
+        ("T052_32", "AD7414_0x4D_temperature"),
+        ("T052_40", "LTC2991_0x48_temperature"),
+        ("T052_41", "LTC2991_0x48_V0.85_v"),
+        ("T052_42", "LTC2991_0x48_V0.85_c"),
+        ("T052_43", "LTC2991_0x48_V5.0_v"),
+        ("T052_44", "LTC2991_0x48_V5.0_c"),
+        ("T052_45", "LTC2991_0x48_V2.5_v"),
+        ("T052_46", "LTC2991_0x48_V2.5_c"),
+        ("T052_47", "LTC2991_0x48_V1.8_v"),
+        ("T052_48", "LTC2991_0x48_V1.8_c"),
+        ("T052_49", "LTC2991_0x48_VCC"),
+        ("T052_50", "LTC2990_0x4C_temperature"),
+        ("T052_51", "LTC2990_0x4C_V1.2_v"),
+        ("T052_52", "LTC2990_0x4C_V3.3_v"),
+        ("T052_53", "LTC2990_0x4C_VCC"),
+        ("T052_54", "LTC2990_0x4c_V1_2_c"),
+        ("T052_55", "LTC2990_0x4c_V3.3_c"),
+        ("T052_60", "LTC2990_0x4e_temperature"),
+        ("T052_61", "LTC2990_0x4e_V0.9_v"),
+        ("T052_62", "LTC2990_0x4e_VCCPSPLL_1.2_v"),
+        ("T052_63", "LTC2990_0x4e_PSDDR4_v"),
+        ("T052_64", "LTC2990_0x4e_VCC"),
+        ("T052_65", "LTC2990_0x4e_V0.9_c"),
+    ]
+    for item_id, key in sensor_map:
+        val = rp_dict.log04_wib.get(key)
+        status = "PASS" if val is not None else "FAIL"
+        updates.append({"item_id": item_id, "value": round(val, 4) if val is not None else "", "status": status})
+    rp_dict.csv_manager.batch_update(updates)
+    t2 = time.time()
+    rp_dict.csv_manager.update_item("T052_99", round(t2 - t1, 2), status="COMPLETE")
 
 time.sleep(0.5)
 psu.safe_power_off()

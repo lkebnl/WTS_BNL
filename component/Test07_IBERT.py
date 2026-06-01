@@ -24,8 +24,9 @@ from matplotlib.colors import LogNorm
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import function.Rigol_DP800 as rigol
-from function.report_path import get_test_subdir, init_report_session
+from function.report_path import get_test_subdir, init_report_session, get_result_csv_path, get_report_dir
 from function.session_info import get_session_info
+from function.csv_manager import WIB_QC_CSV_Manager
 
 # ============================================================
 # TROUBLESHOOT HELPER FUNCTIONS
@@ -350,6 +351,22 @@ def validate_eye_scan_file(filepath, channel, result_dict=None):
 
 print_header("A_RT07: IBERT (Integrated Bit Error Ratio Test)")
 
+# Get session info (from WIB_QC_Detail.py or defaults for standalone run)
+session_info = get_session_info()
+wib_id = session_info.get('WIB_ID', 'standalone_test')
+
+# Check if CSV exists in report folder; create if missing, attach if found
+csv_path = get_result_csv_path()
+if csv_path is None:
+    report_dir = get_report_dir()
+    csv_path = os.path.join(report_dir, f"WIB_{wib_id}_QC_Results.csv")
+if not os.path.exists(csv_path):
+    print(f"\nCSV not found — creating: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=True)
+elif rp_dict.csv_manager is None:
+    print(f"\nCSV found — attaching: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=False)
+
 # Start time for test duration
 t1 = time.time()
 
@@ -623,7 +640,6 @@ psu.close()
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Get the main report directory (same level as Final_Report)
-from function.report_path import get_report_dir
 main_report_dir = get_report_dir()
 
 print(f"\n{'=' * 60}")
@@ -645,6 +661,29 @@ scan01_exists = validate_eye_scan_file(scan01_path, "X0Y5", result_dict)
 
 if not scan00_exists or not scan01_exists:
     print_warning(TROUBLESHOOT["eye_scan_fail"])
+
+# === Write results to QC CSV ===
+if rp_dict.csv_manager:
+    rp_dict.csv_manager.batch_update([
+        {"item_id": "T07_00", "value": round(v1, 3),              "status": "PASS" if 11.0 <= v1 <= 13.0 else "FAIL"},
+        {"item_id": "T07_01", "value": round(c1, 3),              "status": "INFO"},
+        {"item_id": "T07_02", "value": round(v2, 3),              "status": "PASS" if 11.0 <= v2 <= 13.0 else "FAIL"},
+        {"item_id": "T07_03", "value": round(c2, 3),              "status": "INFO"},
+        {"item_id": "T07_10", "value": "PASS" if ibert_init_ok else "FAIL",  "status": "PASS" if ibert_init_ok else "FAIL"},
+        {"item_id": "T07_11", "value": "PASS" if ber_script_ok else "FAIL",  "status": "PASS" if ber_script_ok else "FAIL"},
+        {"item_id": "T07_20", "value": rp_dict.log07_ibert.get("X0Y4_Total_BER",       "N/A"), "status": "INFO"},
+        {"item_id": "T07_21", "value": rp_dict.log07_ibert.get("X0Y4_Total_ERROR_count","N/A"), "status": "PASS" if x0y4_error_count == 0 else "FAIL"},
+        {"item_id": "T07_22", "value": rp_dict.log07_ibert.get("X0Y4_Total_BIT_count",  "N/A"), "status": "INFO"},
+        {"item_id": "T07_23", "value": x0y4_decision,             "status": x0y4_decision},
+        {"item_id": "T07_30", "value": rp_dict.log07_ibert.get("X0Y5_Total_BER",       "N/A"), "status": "INFO"},
+        {"item_id": "T07_31", "value": rp_dict.log07_ibert.get("X0Y5_Total_ERROR_count","N/A"), "status": "PASS" if x0y5_error_count == 0 else "FAIL"},
+        {"item_id": "T07_32", "value": rp_dict.log07_ibert.get("X0Y5_Total_BIT_count",  "N/A"), "status": "INFO"},
+        {"item_id": "T07_33", "value": x0y5_decision,             "status": x0y5_decision},
+        {"item_id": "T07_40", "value": "PASS" if eye_scan_ok else "FAIL",   "status": "PASS" if eye_scan_ok else "FAIL"},
+        {"item_id": "T07_41", "value": "PASS" if scan00_exists else "FAIL",  "status": "PASS" if scan00_exists else "FAIL"},
+        {"item_id": "T07_42", "value": "PASS" if scan01_exists else "FAIL",  "status": "PASS" if scan01_exists else "FAIL"},
+        {"item_id": "T07_99", "value": test_duration,              "status": "INFO"},
+    ])
 
 # === Generate Eye Scan Plots ===
 print_header("Eye Scan Plot Generation")

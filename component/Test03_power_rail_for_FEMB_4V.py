@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # from function.rigol_dp832_ps import RIGOL_PS_CTL
 import function.Rigol_DP800 as rigol
 from function.csv_manager import WIB_QC_CSV_Manager
-from function.report_path import get_report_path, init_report_session
+from function.report_path import get_report_path, init_report_session, get_result_csv_path, get_report_dir
 from function.session_info import get_session_info, get_report_filename
 from function.ping_host import ping_host
 from datetime import datetime
@@ -47,6 +47,22 @@ def print_warning(msg):
 print_header("A_RT03_04 : FEMB Power Rail Test (4V)")
 print("Testing 4 FEMB slots with 5 power rails each")
 print("Power rails: FE, CD, ADC, IDLE, BIAS")
+
+# Get session info (from WIB_QC_Detail.py or defaults for standalone run)
+session_info = get_session_info()
+wib_id = session_info.get('WIB_ID', 'standalone_test')
+
+# Check if CSV exists in report folder; create if missing, attach if found
+csv_path = get_result_csv_path()
+if csv_path is None:
+    report_dir = get_report_dir()
+    csv_path = os.path.join(report_dir, f"WIB_{wib_id}_QC_Results.csv")
+if not os.path.exists(csv_path):
+    print(f"\nCSV not found — creating: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=True)
+elif rp_dict.csv_manager is None:
+    print(f"\nCSV found — attaching: {csv_path}")
+    rp_dict.csv_manager = WIB_QC_CSV_Manager(wib_id, csv_filepath=csv_path, overwrite=False)
 
 t1 = time.time()
 psu = rigol.RigolDP800()
