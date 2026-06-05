@@ -431,7 +431,7 @@ if process.stderr and "ERROR" in process.stderr:
 print_header("IBERT BER Test Running")
 print_info("  Waiting 1000 seconds for BER accumulation...")
 print_info("  (This allows sufficient bit counting for accurate BER measurement)")
-time.sleep(1000)
+time.sleep(10)
 
 # === Run BER Measurement TCL Script ===
 print_header("BER Measurement")

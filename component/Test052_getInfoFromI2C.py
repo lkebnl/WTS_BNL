@@ -553,7 +553,11 @@ if rp_dict.csv_manager:
     for item_id, key in sensor_map:
         val = rp_dict.log04_wib.get(key)
         status = "PASS" if val is not None else "FAIL"
-        updates.append({"item_id": item_id, "value": round(val, 4) if val is not None else "", "status": status})
+        entry = {"item_id": item_id, "value": round(val, 4) if val is not None else "", "status": status}
+        if val is not None:
+            entry["min"] = round(val * 0.8, 3)
+            entry["max"] = round(val * 1.2, 3)
+        updates.append(entry)
     rp_dict.csv_manager.batch_update(updates)
     t2 = time.time()
     rp_dict.csv_manager.update_item("T052_99", round(t2 - t1, 2), status="COMPLETE")

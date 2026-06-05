@@ -516,6 +516,15 @@ while True:
     rp_dict.log05_Cal['1_6v_slot_2_P6'] = round(slot2, 4)
     rp_dict.log05_Cal['1_6v_slot_3_P4'] = round(slot3, 4)
 
+    if rp_dict.csv_manager:
+        t_t1_status = "PASS" if test_t1_pass else "FAIL"
+        rp_dict.csv_manager.batch_update([
+            {"item_id": "T02_19", "value": round(slot0, 4), "status": t_t1_status},
+            {"item_id": "T02_20", "value": round(slot1, 4), "status": t_t1_status},
+            {"item_id": "T02_21", "value": round(slot2, 4), "status": t_t1_status},
+            {"item_id": "T02_22", "value": round(slot3, 4), "status": t_t1_status},
+        ])
+
     if test_t1_pass:
         break  # Test passed, continue to next
     else:
@@ -560,6 +569,15 @@ while True:
     rp_dict.log05_Cal['0123_slot_2_P6'] = round(slot2, 4)
     rp_dict.log05_Cal['0123_slot_3_P4'] = round(slot3, 4)
 
+    if rp_dict.csv_manager:
+        t_t2_status = "PASS" if test_t2_pass else "FAIL"
+        rp_dict.csv_manager.batch_update([
+            {"item_id": "T02_23", "value": round(slot0, 4), "status": t_t2_status},
+            {"item_id": "T02_24", "value": round(slot1, 4), "status": t_t2_status},
+            {"item_id": "T02_25", "value": round(slot2, 4), "status": t_t2_status},
+            {"item_id": "T02_26", "value": round(slot3, 4), "status": t_t2_status},
+        ])
+
     if test_t2_pass:
         break  # Test passed, continue to next
     else:
@@ -603,6 +621,15 @@ while True:
     rp_dict.log05_Cal['3210_slot_1_P7'] = round(slot1, 4)
     rp_dict.log05_Cal['3210_slot_2_P6'] = round(slot2, 4)
     rp_dict.log05_Cal['3210_slot_3_P4'] = round(slot3, 4)
+
+    if rp_dict.csv_manager:
+        t_t3_status = "PASS" if test_t3_pass else "FAIL"
+        rp_dict.csv_manager.batch_update([
+            {"item_id": "T02_27", "value": round(slot0, 4), "status": t_t3_status},
+            {"item_id": "T02_28", "value": round(slot1, 4), "status": t_t3_status},
+            {"item_id": "T02_29", "value": round(slot2, 4), "status": t_t3_status},
+            {"item_id": "T02_30", "value": round(slot3, 4), "status": t_t3_status},
+        ])
 
     if test_t3_pass:
         break  # Test passed, continue to next
@@ -655,6 +682,15 @@ while True:
     rp_dict.log05_Cal['P5_slot_1_P7'] = round(slot1, 4)
     rp_dict.log05_Cal['P5_slot_2_P6'] = round(slot2, 4)
     rp_dict.log05_Cal['P5_slot_3_P4'] = round(slot3, 4)
+
+    if rp_dict.csv_manager:
+        t_t4_status = "PASS" if test_t4_pass else "FAIL"
+        rp_dict.csv_manager.batch_update([
+            {"item_id": "T02_31", "value": round(slot0, 4), "status": t_t4_status},
+            {"item_id": "T02_32", "value": round(slot1, 4), "status": t_t4_status},
+            {"item_id": "T02_33", "value": round(slot2, 4), "status": t_t4_status},
+            {"item_id": "T02_34", "value": round(slot3, 4), "status": t_t4_status},
+        ])
 
     if test_t4_pass:
         break  # Test passed, continue to next
@@ -710,6 +746,15 @@ while True:
     rp_dict.log05_Cal['TP_slot_2_P6'] = round(slot2, 4)
     rp_dict.log05_Cal['TP_slot_3_P4'] = round(slot3, 4)
     tcp.tcp_cmd_io(cmd=0x02, aux=0, addr=0x08, data=0xFFFFFFFF)
+
+    if rp_dict.csv_manager:
+        t_t5_status = "PASS" if test_t5_pass else "FAIL"
+        rp_dict.csv_manager.batch_update([
+            {"item_id": "T02_35", "value": round(slot0, 4), "status": t_t5_status},
+            {"item_id": "T02_36", "value": round(slot1, 4), "status": t_t5_status},
+            {"item_id": "T02_37", "value": round(slot2, 4), "status": t_t5_status},
+            {"item_id": "T02_38", "value": round(slot3, 4), "status": t_t5_status},
+        ])
 
     if test_t5_pass:
         break  # Test passed, continue to next

@@ -73,15 +73,29 @@ class WIB_QC_CSV_Manager:
         rows.append(["Comment", "", "", ""])
         rows.append([])
 
-        # ========== Test00: Reception Checkout ==========
-        rows.append(["=== Test00: Reception Checkout ==="])
+        # ========== Item0101_QSPI: QSPI Flash Load ==========
+        rows.append(["=== Item0101_QSPI: QSPI Flash Load ==="])
         rows.append(["Item", "Parameter", "Value", "Unit", "Status", "Min", "Max", "Timestamp"])
-        rows.append(["T00_01", "Component_Inspection", "", "", "", "", "", ""])
-        rows.append(["T00_02", "LTpowerPlay_Config", "", "", "", "", "", ""])
-        rows.append(["T00_03", "Power_Ch1_Current", "", "A", "", "0.5", "2.0", ""])
-        rows.append(["T00_04", "Power_Ch2_Current", "", "A", "", "0.5", "2.0", ""])
-        rows.append(["T00_05", "Front_Panel_Install", "", "", "", "", "", ""])
-        rows.append(["T00_06", "Test_Duration", "", "s", "", "", "", ""])
+        rows.append(["T_QSPI_01", "UART_Connection",   "", "",  "", "", "", ""])
+        rows.append(["T_QSPI_02", "QSPI_Script_Run",   "", "",  "", "", "", ""])
+        rows.append(["T_QSPI_03", "Poweroff_Success",  "", "",  "", "", "", ""])
+        rows.append(["T_QSPI_04", "WIB_Power_Ch1_V",   "", "V", "", "11.0", "13.0", ""])
+        rows.append(["T_QSPI_05", "WIB_Power_Ch2_V",   "", "V", "", "11.0", "13.0", ""])
+        rows.append(["T_QSPI_06", "Test_Duration",     "", "s", "", "", "", ""])
+        rows.append([])
+
+        # ========== Item0102_QSPI: QSPI Boot Verification ==========
+        rows.append(["=== Item0102_QSPI: QSPI Boot Verification ==="])
+        rows.append(["Item", "Parameter", "Value", "Unit", "Status", "Min", "Max", "Timestamp"])
+        rows.append(["T_QSPI2_01", "UART_Connection",         "", "",  "", "", "", ""])
+        rows.append(["T_QSPI2_02", "QSPI_Boot_Verified",     "", "",  "", "", "", ""])
+        rows.append(["T_QSPI2_03", "Poweroff_Success",       "", "",  "", "", "", ""])
+        rows.append(["T_QSPI2_04", "WIB_Power_Ch1_V",        "", "V", "", "11.0", "13.0", ""])
+        rows.append(["T_QSPI2_05", "WIB_Power_Ch2_V",        "", "V", "", "11.0", "13.0", ""])
+        rows.append(["T_QSPI2_06", "Test_Duration",          "", "s", "", "", "", ""])
+        rows.append(["T_QSPI2_07", "Devmem_0xFF0B0200_0x140","", "",  "", "", "", ""])
+        rows.append(["T_QSPI2_08", "Devmem_0xFF0B0004_MAC",  "", "",  "", "", "", ""])
+        rows.append(["T_QSPI2_09", "Ping_192.168.121.1",     "", "",  "", "", "", ""])
         rows.append([])
 
         # ========== Test01: Serial/TCP/IP Communication ==========
@@ -112,10 +126,30 @@ class WIB_QC_CSV_Manager:
         rows.append(["T02_06", "DAC_1_Config", "", "", "", "", "", ""])
         rows.append(["T02_07", "DAC_2_Config", "", "", "", "", "", ""])
         rows.append(["T02_08", "DAC_3_Config", "", "", "", "", "", ""])
-        rows.append(["T02_09", "ADC_0_Readback", "", "mV", "", "", "", ""])
-        rows.append(["T02_10", "ADC_1_Readback", "", "mV", "", "", "", ""])
-        rows.append(["T02_11", "ADC_2_Readback", "", "mV", "", "", "", ""])
-        rows.append(["T02_12", "ADC_3_Readback", "", "mV", "", "", "", ""])
+        rows.append(["T02_09", "ADC_0_Readback_DAC1V", "", "V", "", "0.9", "1.1", ""])
+        rows.append(["T02_10", "ADC_1_Readback_DAC1V", "", "V", "", "0.9", "1.1", ""])
+        rows.append(["T02_11", "ADC_2_Readback_DAC1V", "", "V", "", "0.9", "1.1", ""])
+        rows.append(["T02_12", "ADC_3_Readback_DAC1V", "", "V", "", "0.9", "1.1", ""])
+        rows.append(["T02_19", "ADC_0_RefVoltage_1.65V", "", "V", "", "1.6", "1.7", ""])
+        rows.append(["T02_20", "ADC_1_RefVoltage_1.65V", "", "V", "", "1.6", "1.7", ""])
+        rows.append(["T02_21", "ADC_2_RefVoltage_1.65V", "", "V", "", "1.6", "1.7", ""])
+        rows.append(["T02_22", "ADC_3_RefVoltage_1.65V", "", "V", "", "1.6", "1.7", ""])
+        rows.append(["T02_23", "ADC_0_PathCtrlA_0.5V",  "", "V", "", "0.5", "0.55", ""])
+        rows.append(["T02_24", "ADC_1_PathCtrlA_0.5V",  "", "V", "", "0.5", "0.55", ""])
+        rows.append(["T02_25", "ADC_2_PathCtrlA_0.5V",  "", "V", "", "0.5", "0.55", ""])
+        rows.append(["T02_26", "ADC_3_PathCtrlA_0.5V",  "", "V", "", "0.5", "0.55", ""])
+        rows.append(["T02_27", "ADC_0_PathCtrlB_0.5V",  "", "V", "", "0.5", "0.55", ""])
+        rows.append(["T02_28", "ADC_1_PathCtrlB_0.5V",  "", "V", "", "0.5", "0.55", ""])
+        rows.append(["T02_29", "ADC_2_PathCtrlB_0.5V",  "", "V", "", "0.5", "0.55", ""])
+        rows.append(["T02_30", "ADC_3_PathCtrlB_0.5V",  "", "V", "", "0.5", "0.55", ""])
+        rows.append(["T02_31", "ADC_0_LEMO_P5_0.8V",    "", "V", "", "0.7", "0.85", ""])
+        rows.append(["T02_32", "ADC_1_LEMO_P5_0.8V",    "", "V", "", "0.7", "0.85", ""])
+        rows.append(["T02_33", "ADC_2_LEMO_P5_0.8V",    "", "V", "", "0.7", "0.85", ""])
+        rows.append(["T02_34", "ADC_3_LEMO_P5_0.8V",    "", "V", "", "0.7", "0.85", ""])
+        rows.append(["T02_35", "ADC_0_TestPoints_0V",    "", "V", "", "0.0", "0.5",  ""])
+        rows.append(["T02_36", "ADC_1_TestPoints_0V",    "", "V", "", "0.0", "0.5",  ""])
+        rows.append(["T02_37", "ADC_2_TestPoints_0V",    "", "V", "", "0.0", "0.5",  ""])
+        rows.append(["T02_38", "ADC_3_TestPoints_0V",    "", "V", "", "0.0", "0.5",  ""])
         rows.append(["T02_13", "WIB_Power_Ch1_V_End", "", "V", "", "11.0", "13.0", ""])
         rows.append(["T02_14", "WIB_Power_Ch1_I_End", "", "A", "", "0.5", "3.0", ""])
         rows.append(["T02_15", "WIB_Power_Ch2_V_End", "", "V", "", "11.0", "13.0", ""])
@@ -224,16 +258,11 @@ class WIB_QC_CSV_Manager:
         rows.append(["T05_23", "AD7414A_0x4a", "", "", "", "", "", ""])
         rows.append(["T05_24", "AD7414A_0x4d", "", "", "", "", "", ""])
         rows.append(["T05_25", "SODIMM_0x51", "", "", "", "", "", ""])
-        rows.append(["T05_26", "LTC2991_0x48_2", "", "", "", "", "", ""])
-        rows.append(["T05_27", "LTC2991_0x4c", "", "", "", "", "", ""])
-        rows.append(["T05_28", "LTC2991_0x4e_2", "", "", "", "", "", ""])
         rows.append(["T05_29", "DAC7574_0x4c", "", "", "", "", "", ""])
         rows.append(["T05_30", "DAC7574_0x4d", "", "", "", "", "", ""])
         rows.append(["T05_31", "DAC7574_0x4e", "", "", "", "", "", ""])
         rows.append(["T05_32", "DAC7574_0x4f", "", "", "", "", "", ""])
         rows.append(["T05_33", "LTC2977_0x5c", "", "", "", "", "", ""])
-        rows.append(["T05_34", "DAC7574_0x4c_2", "", "", "", "", "", ""])
-        rows.append(["T05_35", "DAC7574_0x4d_2", "", "", "", "", "", ""])
         rows.append(["T05_36", "24LC64SN_0x50", "", "", "", "", "", ""])
         rows.append(["T05_37", "ADN2814_0x40", "", "", "", "", "", ""])
         rows.append(["T05_99", "Test_Duration", "", "s", "", "", "", ""])
@@ -350,15 +379,17 @@ class WIB_QC_CSV_Manager:
 
         print(f"✓ CSV initialized: {self.csv_filepath}")
 
-    def update_item(self, item_id, value, status="", timestamp=None):
+    def update_item(self, item_id, value, status="", timestamp=None, min_val=None, max_val=None):
         """
         更新指定测试项目的值
 
         Args:
-            item_id: 测试项目ID (例如: "T00_01", "T01_03", "T03_1V_0FE_V")
+            item_id: 测试项目ID (例如: "T01_03", "T03_1V_0FE_V")
             value: 测试值
             status: 测试状态 (PASS/FAIL/WARNING等)
             timestamp: 时间戳，如果未指定则使用当前时间
+            min_val: 最小允许值 (可选)
+            max_val: 最大允许值 (可选)
         """
         if timestamp is None:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -374,17 +405,15 @@ class WIB_QC_CSV_Manager:
             for i, row in enumerate(rows):
                 if len(row) > 0 and row[0] == item_id:
                     # 找到对应行，更新值
-                    if len(row) >= 8:
-                        row[2] = str(value)  # Value
-                        row[4] = status      # Status
-                        row[7] = timestamp   # Timestamp
-                    else:
-                        # 扩展行到足够长度
-                        while len(row) < 8:
-                            row.append("")
-                        row[2] = str(value)
-                        row[4] = status
-                        row[7] = timestamp
+                    while len(row) < 8:
+                        row.append("")
+                    row[2] = str(value)  # Value
+                    row[4] = status      # Status
+                    if min_val is not None:
+                        row[5] = str(min_val)
+                    if max_val is not None:
+                        row[6] = str(max_val)
+                    row[7] = timestamp   # Timestamp
 
                     rows[i] = row
                     updated = True
@@ -448,8 +477,8 @@ class WIB_QC_CSV_Manager:
         Example:
             csv_mgr.batch_update([
                 {"item_id": "T01_02", "value": "192.168.121.1", "status": "PASS"},
-                {"item_id": "T01_03", "value": "Connected", "status": "PASS"},
-                {"item_id": "T01_08", "value": 12.05, "status": "PASS"}
+                {"item_id": "T01_08", "value": 12.05, "status": "PASS", "min": 11.0, "max": 13.0},
+                {"item_id": "T03_1V_0FE_I", "value": 0.121, "status": "PASS", "min": 0.097, "max": 0.145}
             ])
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -474,6 +503,10 @@ class WIB_QC_CSV_Manager:
 
                     row[2] = str(update_data.get("value", ""))
                     row[4] = update_data.get("status", "")
+                    if "min" in update_data:
+                        row[5] = str(update_data["min"])
+                    if "max" in update_data:
+                        row[6] = str(update_data["max"])
                     row[7] = timestamp
                     rows[i] = row
 

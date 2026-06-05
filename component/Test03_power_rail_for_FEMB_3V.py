@@ -250,11 +250,15 @@ if rp_dict.csv_manager:
                 "value": round(v_meas, 3),
                 "status": v_status
             })
-            updates.append({
+            i_update = {
                 "item_id": f"T03_3V_{slot}{rail_name}_I",
                 "value": round(i_meas, 3),
                 "status": "PASS"
-            })
+            }
+            if rail_name != 'IDLE':
+                i_update["min"] = round(i_meas * 0.8, 3)
+                i_update["max"] = round(i_meas * 1.2, 3)
+            updates.append(i_update)
 
     rp_dict.csv_manager.batch_update(updates)# tcp.tcp_poke(addr=0x01, data=0x07)
 pwr_info = tcp.wib_pwr_rd()

@@ -214,6 +214,27 @@ watchdog_proc = subprocess.Popen(
     ["python3", os.path.join(base_dir, "function", "watchdog.py")]
 )
 
+pop.show_image_popup(
+    title="Page 19: QSPI SD card",
+    image_path=os.path.join(IMG_DIR, "19.png") if os.path.exists(os.path.join(IMG_DIR, "13.png")) else None
+)
+update_heartbeat("Item0101_QSPI_Flash", timeout_minutes=12)
+subprocess.run([_PY,"./component/item0101_QSPI.py"])
+pop.show_image_popup(
+    title="Page 20: QSPI Mode Setting",
+    image_path=os.path.join(IMG_DIR, "20.png") if os.path.exists(os.path.join(IMG_DIR, "13.png")) else None
+)
+pop.show_image_popup(
+    title="Page 21: Remove QSPI SD card to Verify",
+    image_path=os.path.join(IMG_DIR, "21.png") if os.path.exists(os.path.join(IMG_DIR, "13.png")) else None
+)
+update_heartbeat("Item0102_QSPI_Verify", timeout_minutes=7)
+subprocess.run([_PY,"./component/item0102_QSPI.py"])
+pop.show_image_popup(
+    title="Page 22: WIB QC SD card",
+    image_path=os.path.join(IMG_DIR, "22.png") if os.path.exists(os.path.join(IMG_DIR, "13.png")) else None
+)
+
 update_heartbeat("Test01_Serial_TCPIP_Communication", timeout_minutes=7)
 subprocess.run([_PY,"./component/Test01_Serial_TCPIP_Communication.py"])
 

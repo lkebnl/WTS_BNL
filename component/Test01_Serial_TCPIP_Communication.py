@@ -205,6 +205,16 @@ def run_uart_test(com_port, psu):
         buffer = ""
         login_detected = False
         last_data_time = time.time()
+        # stage tracks the boot_cnt.txt deletion sequence:
+        #   0 = awaiting first shell prompt after login
+        #   1 = mkdir sent, awaiting prompt
+        #   2 = mount sent, awaiting prompt
+        #   3 = rm sent, awaiting prompt
+        #   4 = ls (verify) sent, awaiting ls output
+        #   5 = deletion verified, awaiting prompt to send cat /etc/issue
+        #   6 = cat /etc/issue sent
+        stage = 0
+        ls_echo_seen = False  # tracks whether we've consumed the ls command echo
 
         while True:
             line = ser_test.readline().decode('utf-8', errors='ignore').strip()
@@ -214,7 +224,19 @@ def run_uart_test(com_port, psu):
                 buffer += line + "\n"
                 last_data_time = time.time()
 
-                if line == "WIB_Petalinux login:" and not login_detected:
+                # Stage 4: parse ls output to verify boot_cnt.txt was deleted
+                if stage == 4:
+                    if 'No such file' in line or 'cannot access' in line:
+                        print_pass("boot_cnt.txt successfully deleted.")
+                        stage = 5
+                    elif 'boot_cnt.txt' in line:
+                        if not ls_echo_seen:
+                            ls_echo_seen = True  # first occurrence is the command echo — skip it
+                        else:
+                            print_fail("boot_cnt.txt was NOT deleted — file still exists on SD card.")
+                            stage = 5
+
+                if "WIB_Petalinux login:" in line and not login_detected:
                     print("Detected login prompt, sending 'root'...")
                     ser_test.write(b'root\n')
                     login_detected = True
@@ -224,8 +246,29 @@ def run_uart_test(com_port, psu):
                     ser_test.write(b'root\n')
 
                 elif "root@WIB_Petalinux:" in line and login_detected:
-                    print("Detected Linux prompt, sending command...")
-                    ser_test.write(b'cat /etc/issue\n')
+                    if stage == 0:
+                        print("Login successful. Waiting 5 seconds before SD-card commands...")
+                        time.sleep(5)
+                        print("Sending: mkdir -p /mnt/sdboot")
+                        ser_test.write(b'mkdir -p /mnt/sdboot\n')
+                        stage = 1
+                    elif stage == 1:
+                        print("Sending: mount /dev/mmcblk0p1 /mnt/sdboot")
+                        ser_test.write(b'mount /dev/mmcblk0p1 /mnt/sdboot\n')
+                        stage = 2
+                    elif stage == 2:
+                        print("Sending: rm -f /mnt/sdboot/boot_cnt.txt")
+                        ser_test.write(b'rm -f /mnt/sdboot/boot_cnt.txt\n')
+                        stage = 3
+                    elif stage == 3:
+                        print("Verifying deletion: ls /mnt/sdboot/boot_cnt.txt")
+                        ls_echo_seen = False
+                        ser_test.write(b'ls /mnt/sdboot/boot_cnt.txt\n')
+                        stage = 4
+                    elif stage == 5:
+                        print("Proceeding with UART communication check...")
+                        ser_test.write(b'cat /etc/issue\n')
+                        stage = 6
 
                 elif 'PetaLinux 2019.1' in line and login_detected:
                     ser_test.write(b'\n')
@@ -592,8 +635,8 @@ def main():
                 print("Sending failure notification email...")
                 send_failure_notification(tester_email, failed_items, wib_id)
 
-        if test_duration > 40:
-            print(f"\033[33m⚠ Warning: Test time ({test_duration}s) exceeded recommended 40 seconds\033[0m")
+        if test_duration > 50:
+            print(f"\033[33m⚠ Warning: Test time ({test_duration}s) exceeded recommended 50 seconds\033[0m")
 
         # Generate report
         report_com_port = com_port if com_port else "N/A"
