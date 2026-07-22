@@ -899,9 +899,31 @@ def data_ana(femb_data):
     chn_avgwfs = []
 
     for chipi in range(8):
+        # guard: ASIC data missing or too short to analyse
+        if (chipi >= len(femb_data)
+                or not femb_data[chipi]
+                or len(femb_data[chipi][0]) < 512):
+            for _ in range(16):
+                chn_rmss.append(0)
+                chn_peds.append(0)
+                chn_pkps.append(0)
+                chn_pkns.append(0)
+                chn_onewfs.append(np.zeros(512, dtype=np.uint16))
+                chn_avgwfs.append(np.zeros(512, dtype=np.uint16))
+            continue
+
         plsn = (len(femb_data[chipi][0]) // 512) - 10
         if plsn > 100:
-            psln = 100
+            plsn = 100
+        if plsn <= 0:
+            for _ in range(16):
+                chn_rmss.append(0)
+                chn_peds.append(0)
+                chn_pkps.append(0)
+                chn_pkns.append(0)
+                chn_onewfs.append(np.zeros(512, dtype=np.uint16))
+                chn_avgwfs.append(np.zeros(512, dtype=np.uint16))
+            continue
 
         for i in range(plsn):
             if i == 0:
@@ -923,8 +945,8 @@ def data_ana(femb_data):
                     avg_wf = avg_wf + (np.array(chndata[512 * i:512 * i + 512]) & 0xffff)
             avg_wf = avg_wf // plsn
 
-            rms = np.std(peddata)
-            ped = int(np.mean(peddata))
+            rms   = np.std(peddata)   if peddata else 0.0
+            ped   = int(np.mean(peddata)) if peddata else 0
             peakp = np.max(avg_wf)
             peakn = np.min(avg_wf)
 
@@ -973,11 +995,11 @@ def FEMB_PLOT(chn_rmss, chn_peds, chn_pkps, chn_pkns, chn_onewfs, chn_avgwfs, sa
     for chni in chns:
         if chni != 500:
             ts = 300
-            x = (np.arange(325))
-            y1 = chn_onewfs[chni]
-            y3 = chn_onewfs[chni][25:75] + chn_onewfs[chni][ts - 150:ts + 125]
-
-            y4 = chn_onewfs[chni][25:75] + chn_onewfs[chni][ts - 150:ts + 125]
+            x  = np.arange(325)
+            wf = np.asarray(chn_onewfs[chni])
+            aw = np.asarray(chn_avgwfs[chni])
+            y3 = np.concatenate([wf[25:75], wf[ts - 150:ts + 125]])   # one-cycle waveform
+            y4 = np.concatenate([aw[25:75], aw[ts - 150:ts + 125]])   # averaged waveform
 
             # print(y1)
             # print(y3)

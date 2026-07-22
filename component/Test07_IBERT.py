@@ -403,7 +403,7 @@ else:
 
 time.sleep(1) # wait for boot
 
-project_dir = "/home/dune/Documents/DUNE_WIB_QC_Script"
+project_dir = "/home/bnl-wib/Documents/WTS_BNL"
 vivado_path = path.xilinx_path
 print(vivado_path)
 
@@ -431,7 +431,7 @@ if process.stderr and "ERROR" in process.stderr:
 print_header("IBERT BER Test Running")
 print_info("  Waiting 1000 seconds for BER accumulation...")
 print_info("  (This allows sufficient bit counting for accurate BER measurement)")
-time.sleep(10)
+time.sleep(1000)
 
 # === Run BER Measurement TCL Script ===
 print_header("BER Measurement")
@@ -492,6 +492,10 @@ x0y5_error_str = rp_dict.log07_ibert.get('X0Y5_Total_ERROR_count', '-1')
 # === Setup Output Directory BEFORE Eye Scan ===
 # Create output directory first so TCL can write directly to it
 output_dir = get_test_subdir("Test07_IBERT")
+print(output_dir)
+print('-----------------------')
+print('-----------------------')
+print('-----------------------')
 print_info(f"  Eye scan output directory: {output_dir}")
 
 # === Run Eye Scan TCL Script ===
@@ -693,7 +697,7 @@ print_info("  Generating X0Y4 eye scan plot...")
 try:
     # Use CSV file directly from output directory (written by TCL script)
     eye_data = pd.read_csv(scan00_path, skiprows=22, nrows=30, header=None, usecols=range(1, 10))
-    eye_matrix = eye_data.apply(pd.to_numeric, errors='coerce').dropna(how='any').values
+    eye_matrix = eye_data.apply(pd.to_numeric, errors='coerce').dropna(how='any').values.copy()
 
     # Replace zeros to avoid log scale crash
     eye_matrix[eye_matrix == 0] = 1e-12
@@ -732,7 +736,7 @@ print_info("  Generating X0Y5 eye scan plot...")
 try:
     # Use CSV file directly from output directory (written by TCL script)
     eye_data = pd.read_csv(scan01_path, skiprows=22, nrows=30, header=None, usecols=range(1, 10))
-    eye_matrix = eye_data.apply(pd.to_numeric, errors='coerce').dropna(how='any').values
+    eye_matrix = eye_data.apply(pd.to_numeric, errors='coerce').dropna(how='any').values.copy()
 
     # Replace zeros to avoid log scale crash
     eye_matrix[eye_matrix == 0] = 1e-12

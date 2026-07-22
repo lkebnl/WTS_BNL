@@ -89,6 +89,26 @@ LTC2499_CHANNELS = {
     'LTC2499_WIB3_Temperature':  6,
 }
 
+# Sense resistor values from bench calibration (src/llctest.pdf), matching llc.py get_sensors()
+R357 = 0.00481    # P0.9V,  LTC2990 0x4E CH1
+R350 = 0.002982   # P3.3V,  LTC2990 0x4C CH3
+R351 = 0.00185    # P1.2V,  LTC2990 0x4C CH1
+R413 = 0.002325   # P0.85V, LTC2991 0x48 CH1-2
+R416 = 0.001879   # P5V,    LTC2991 0x48 CH3-4
+R352 = 0.0013     # P2.5V,  LTC2991 0x48 CH5-6
+R353 = 0.000973   # P1.8V,  LTC2991 0x48 CH7-8
+
+_LTC2990_LSB_DIFF = 19.42e-6    # V/LSB differential — LTC2990 datasheet
+_LTC2991_LSB_DIFF = 19.075e-6   # V/LSB differential — LTC2991 datasheet
+
+
+def _decode_diff(msb, lsb, lsb_v):
+    """Two's-complement decode for LTC299x differential (current sense) register."""
+    raw16 = (msb << 8) | lsb
+    raw15 = raw16 & 0x7FFF
+    code  = (raw15 - 0x8000) if (raw15 & 0x4000) else raw15
+    return code * lsb_v
+
 
 def ltc2499_c_style_voltage(raw_bytes, vref=2.578):
     """
@@ -259,7 +279,7 @@ print(temp_result.splitlines()[1])
 msb, lsb = [int(x, 16) for x in temp_result.splitlines()[1].split()]
 raw_value = (msb << 8) | lsb
 vbus_voltage = raw_value * 0.00125
-rp_dict.log04_wib['LINA226_Vbus'] = vbus_voltage
+rp_dict.log04_wib['INA226_Vbus'] = vbus_voltage
 send_command(connection, 'i2cset -y 0 0x46 0x01')
 time.sleep(0.2)
 temp_result = send_command(connection, 'i2ctransfer -y 0 r2@0x46')
@@ -277,56 +297,31 @@ tcp.tcp_poke(1, 0x05)
 time.sleep(0.5)
 readback = send_command(connection, 'i2cdetect -r -y 1')
 print(readback)
-Device = 'AD7414_0x4A';    Address = '4a'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
-else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
-send_command(connection, 'i2cset -y 0 0x4a 0x00')
-time.sleep(0.2)
-temp_result = send_command(connection, 'i2ctransfer -y 0 r2@0x4a')
-print('temp_result')
-print(temp_result.splitlines()[1])
-msb, lsb = [int(x, 16) for x in temp_result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb) >> 6
-print(raw)
-if raw > 511:
-    raw -= 512
-print(raw)
-temperature = raw * 0.25
-rp_dict.log04_wib['AD7414_0x4A_temperature'] = temperature
-Device = 'AD7414_0x49';    Address = '49'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
-else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
-send_command(connection, 'i2cset -y 0 0x49 0x00')
-time.sleep(0.2)
-temp_result = send_command(connection, 'i2ctransfer -y 0 r2@0x49')
-print('temp_result')
-print(temp_result.splitlines()[1])
-msb, lsb = [int(x, 16) for x in temp_result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb) >> 6
-if raw > 511:
-    raw -= 512
-temperature = raw * 0.25
-rp_dict.log04_wib['AD7414_0x49_temperature'] = temperature
-Device = 'AD7414_0x4D';    Address = '4d'
-if Address in readback:
-    print('I2C Device {} has been found at 0x{}'.format(Device, Address))
-else:
-    print('Loss I2C Device [{}] at 0x{} ...'.format(Device, Address))
-send_command(connection, 'i2cset -y 0 0x4d 0x00')
-time.sleep(0.2)
-temp_result = send_command(connection, 'i2ctransfer -y 0 r2@0x4d')
-print('temp_result')
-print(temp_result.splitlines()[1])
-msb, lsb = [int(x, 16) for x in temp_result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb) >> 6
-if raw > 511:
-    raw -= 512
-temperature = raw * 0.25
-rp_dict.log04_wib['AD7414_0x4D_temperature'] = temperature
+for dev_name, i2c_addr, reg_key in [
+    ('AD7414_0x4A', '0x4a', 'AD7414_0x4A_temperature'),
+    ('AD7414_0x49', '0x49', 'AD7414_0x49_temperature'),
+    ('AD7414_0x4D', '0x4d', 'AD7414_0x4D_temperature'),
+]:
+    Address = i2c_addr.replace('0x', '')
+    if Address in readback:
+        print('I2C Device {} has been found at 0x{}'.format(dev_name, Address))
+    else:
+        print('Loss I2C Device [{}] at 0x{} ...'.format(dev_name, Address))
+    try:
+        send_command(connection, 'i2cset -y 0 {} 0x00'.format(i2c_addr))
+        time.sleep(0.2)
+        temp_result = send_command(connection, 'i2ctransfer -y 0 r2@{}'.format(i2c_addr))
+        print('temp_result')
+        print(temp_result.splitlines()[1])
+        msb, lsb = [int(x, 16) for x in temp_result.splitlines()[1].split()]
+        raw = ((msb << 8) | lsb) >> 6
+        if raw > 511:
+            raw -= 512
+        temperature = raw * 0.25
+        rp_dict.log04_wib[reg_key] = temperature
+    except Exception as e:
+        print('SKIP {} read failed: {}'.format(dev_name, e))
+        rp_dict.log04_wib[reg_key] = 'N/A'
 ###
 Device = 'LTC2991_0x48';    Address = '48'
 if Address in readback:
@@ -357,46 +352,52 @@ send_command(connection, 'i2cset -y 0 0x48 0x01 0xff')
 send_command(connection, 'i2cset -y 0 0x48 0x0c')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x48')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb)
-current_1 = ((((raw & 0x3fff)) * 0.000019075) / 0.001)
+current_1 = _decode_diff(msb, lsb, _LTC2991_LSB_DIFF) / R413
 rp_dict.log04_wib['LTC2991_0x48_V0.85_c'] = current_1
 send_command(connection, 'i2cset -y 0 0x48 0x10')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x48')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb)
-current_2 = ((((raw & 0x3fff)) * 0.000019075) / 0.001)
+current_2 = _decode_diff(msb, lsb, _LTC2991_LSB_DIFF) / R416
 rp_dict.log04_wib['LTC2991_0x48_V5.0_c'] = current_2
 send_command(connection, 'i2cset -y 0 0x48 0x14')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x48')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb)
-current_3 = ((((raw & 0x3fff)) * 0.000019075) / 0.001)
+current_3 = _decode_diff(msb, lsb, _LTC2991_LSB_DIFF) / R352
 rp_dict.log04_wib['LTC2991_0x48_V2.5_c'] = current_3
 send_command(connection, 'i2cset -y 0 0x48 0x18')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x48')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb)
-current_4 = ((((raw & 0x3fff)) * 0.000019075) / 0.001)
+current_4 = _decode_diff(msb, lsb, _LTC2991_LSB_DIFF) / R353
 rp_dict.log04_wib['LTC2991_0x48_V1.8_c'] = current_4
-send_command(connection, 'i2cset -y 0 0x48 0x0A')
+# Switch pairs back to single-ended mode so the EVEN data register (same
+# address as the diff read above) holds the load-side pin voltage,
+# matching the convention in llc.py's ltc2991_read_voltage().
+send_command(connection, 'i2cset -y 0 0x48 0x06 0x00')
+send_command(connection, 'i2cset -y 0 0x48 0x07 0x00')
+send_command(connection, 'i2cset -y 0 0x48 0x01 0xff')
+send_command(connection, 'i2cset -y 0 0x48 0x06 0x00')
+send_command(connection, 'i2cset -y 0 0x48 0x07 0x00')
+send_command(connection, 'i2cset -y 0 0x48 0x01 0xff')
+send_command(connection, 'sleep 0.05')
+send_command(connection, 'i2cset -y 0 0x48 0x0c')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x48')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 voltage_1 = ((raw & 0x3fff)) * 0.00030518
 rp_dict.log04_wib['LTC2991_0x48_V0.85_v'] = voltage_1
-send_command(connection, 'i2cset -y 0 0x48 0x0E')
+send_command(connection, 'i2cset -y 0 0x48 0x10')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x48')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 voltage_2 = ((raw & 0x3fff)) * 0.00030518
 rp_dict.log04_wib['LTC2991_0x48_V5.0_v'] = voltage_2
-send_command(connection, 'i2cset -y 0 0x48 0x12')
+send_command(connection, 'i2cset -y 0 0x48 0x14')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x48')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 voltage_3 = ((raw & 0x3fff)) * 0.00030518
 rp_dict.log04_wib['LTC2991_0x48_V2.5_v'] = voltage_3
-send_command(connection, 'i2cset -y 0 0x48 0x16')
+send_command(connection, 'i2cset -y 0 0x48 0x18')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x48')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
@@ -417,13 +418,13 @@ else:
 send_command(connection, 'i2cset -y 0 0x4c 0x01 0x1F')
 send_command(connection, 'i2cset -y 0 0x4c 0x02 0xFF')
 send_command(connection, 'sleep 0.05')
-send_command(connection, 'i2cset -y 0 0x4c 0x06')
+send_command(connection, 'i2cset -y 0 0x4c 0x08')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x4c')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 voltage_5 = ((raw & 0x3fff)) * 0.00030518
 rp_dict.log04_wib['LTC2990_0x4C_V1.2_v'] = voltage_5
-send_command(connection, 'i2cset -y 0 0x4c 0x0a')
+send_command(connection, 'i2cset -y 0 0x4c 0x0c')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x4c')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
@@ -441,19 +442,17 @@ msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 voltage_7 = ((raw & 0x3fff)) * 0.00030518
 rp_dict.log04_wib['LTC2990_0x4C_VCC'] = voltage_7 + 2.5
-send_command(connection, 'i2cset -y 0 0x4c 0x01 0x06')
+send_command(connection, 'i2cset -y 0 0x4c 0x01 0x5E')
 send_command(connection, 'i2cset -y 0 0x4c 0x02 0xff')
+send_command(connection, 'i2cset -y 0 0x4c 0x06')
+result = send_command(connection, 'i2ctransfer -y 0 r2@0x4c')
+msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
+current_5 = _decode_diff(msb, lsb, _LTC2990_LSB_DIFF) / R351
+rp_dict.log04_wib['LTC2990_0x4c_V1_2_c'] = current_5
 send_command(connection, 'i2cset -y 0 0x4c 0x0a')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x4c')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb)
-current_5 = ((((raw & 0x3fff)) * 0.000019075) / 0.1)
-rp_dict.log04_wib['LTC2990_0x4c_V1_2_c'] = current_5
-send_command(connection, 'i2cset -y 0 0x4c 0x0e')
-result = send_command(connection, 'i2ctransfer -y 0 r2@0x4c')
-msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb)
-current_6 = ((((raw & 0x3fff)) * 0.000019075) / 0.1)
+current_6 = _decode_diff(msb, lsb, _LTC2990_LSB_DIFF) / R350
 rp_dict.log04_wib['LTC2990_0x4c_V3.3_c'] = current_6
 ###
 Device = 'LTC2990_0x4e';    Address = '4e'
@@ -464,7 +463,7 @@ else:
 send_command(connection, 'i2cset -y 0 0x4e 0x01 0x1F')
 send_command(connection, 'i2cset -y 0 0x4e 0x02 0xFF')
 send_command(connection, 'sleep 0.05')
-send_command(connection, 'i2cset -y 0 0x4e 0x06')
+send_command(connection, 'i2cset -y 0 0x4e 0x08')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x4e')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
@@ -494,13 +493,12 @@ msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
 raw = ((msb << 8) | lsb)
 voltage_8 = ((raw & 0x3fff)) * 0.00030518
 rp_dict.log04_wib['LTC2990_0x4e_PSDDR4_v'] = voltage_8
-send_command(connection, 'i2cset -y 0 0x4e 0x01 0x06')
+send_command(connection, 'i2cset -y 0 0x4e 0x01 0x5E')
 send_command(connection, 'i2cset -y 0 0x4e 0x02 0xff')
-send_command(connection, 'i2cset -y 0 0x4e 0x0a')
+send_command(connection, 'i2cset -y 0 0x4e 0x06')
 result = send_command(connection, 'i2ctransfer -y 0 r2@0x4e')
 msb, lsb = [int(x, 16) for x in result.splitlines()[1].split()]
-raw = ((msb << 8) | lsb)
-current_5 = ((((raw & 0x3fff)) * 0.000019075) / 0.1)
+current_5 = _decode_diff(msb, lsb, _LTC2990_LSB_DIFF) / R357
 rp_dict.log04_wib['LTC2990_0x4e_V0.9_c'] = current_5
 
 # Write all sensor results to QC CSV
@@ -522,7 +520,7 @@ if rp_dict.csv_manager:
         ("T052_14", "LTC2499_WIB1_Temperature"),
         ("T052_15", "LTC2499_WIB2_Temperature"),
         ("T052_16", "LTC2499_WIB3_Temperature"),
-        ("T052_20", "LINA226_Vbus"),
+        ("T052_20", "INA226_Vbus"),
         ("T052_21", "INA226_Current"),
         ("T052_30", "AD7414_0x4A_temperature"),
         ("T052_31", "AD7414_0x49_temperature"),
@@ -552,9 +550,10 @@ if rp_dict.csv_manager:
     ]
     for item_id, key in sensor_map:
         val = rp_dict.log04_wib.get(key)
-        status = "PASS" if val is not None else "FAIL"
-        entry = {"item_id": item_id, "value": round(val, 4) if val is not None else "", "status": status}
-        if val is not None:
+        numeric = isinstance(val, (int, float))
+        status = "PASS" if numeric else "FAIL"
+        entry = {"item_id": item_id, "value": round(val, 4) if numeric else "", "status": status}
+        if numeric:
             entry["min"] = round(val * 0.8, 3)
             entry["max"] = round(val * 1.2, 3)
         updates.append(entry)
@@ -567,7 +566,7 @@ psu.safe_power_off()
 psu.close()
 
 # === Determine overall pass/fail ===
-overall_pass = all(v is not None for v in rp_dict.log04_wib.values())
+overall_pass = all(isinstance(v, (int, float)) for v in rp_dict.log04_wib.values())
 overall_status = "PASS" if overall_pass else "FAIL"
 overall_status_class = "status-pass" if overall_pass else "status-fail"
 
@@ -576,18 +575,54 @@ report_filename = get_report_filename("Test052_I2C_Sensor_report", overall_pass)
 target_file_path = get_report_path(report_filename)
 print(f"Report path: {target_file_path}")
 
-# Build sensor table rows
-sensor_rows = ""
-for key, value in rp_dict.log04_wib.items():
-    if value is not None:
-        row_status_class = "status-pass"
-        sensor_rows += f"<tr><td>{key}</td><td>{value:.3f}</td><td class='{row_status_class}'>OK</td></tr>\n"
-    else:
-        row_status_class = "status-fail"
-        sensor_rows += f"<tr><td>{key}</td><td>—</td><td class='{row_status_class}'>READ FAILED</td></tr>\n"
+# Build grouped sensor sections
+def _sensor_row(key, val):
+    if isinstance(val, (int, float)):
+        return f"<tr><td>{key}</td><td>{val:.3f}</td><td class='status-pass'>OK</td></tr>\n"
+    return f"<tr><td>{key}</td><td>—</td><td class='status-fail'>READ FAILED</td></tr>\n"
+
+def _group_section(title, keys, data):
+    rows = "".join(_sensor_row(k, data[k]) for k in keys if k in data)
+    if not rows:
+        return ""
+    return (f"<h3 style='margin-top:24px;margin-bottom:6px'>{title}</h3>"
+            f"<table><thead><tr><th>Sensor</th><th>Value</th><th>Status</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table>\n")
+
+d = rp_dict.log04_wib
+grouped_sensor_html = (
+    _group_section("Board Temperatures", [
+        "LTC2499_FEMB0_Temperature", "LTC2499_FEMB1_Temperature",
+        "LTC2499_FEMB2_Temperature", "LTC2499_FEMB3_Temperature",
+        "LTC2499_WIB1_Temperature",  "LTC2499_WIB2_Temperature", "LTC2499_WIB3_Temperature",
+        "AD7414_0x4A_temperature",   "AD7414_0x49_temperature",  "AD7414_0x4D_temperature",
+        "LTC2991_0x48_temperature",  "LTC2990_0x4C_temperature", "LTC2990_0x4e_temperature",
+    ], d) +
+    _group_section("INA226 Power Monitor", [
+        "INA226_Vbus", "INA226_Current",
+    ], d) +
+    _group_section("LTC2991 (0x48) &mdash; Rail Voltages &amp; Currents", [
+        "LTC2991_0x48_V0.85_v", "LTC2991_0x48_V0.85_c",
+        "LTC2991_0x48_V5.0_v",  "LTC2991_0x48_V5.0_c",
+        "LTC2991_0x48_V2.5_v",  "LTC2991_0x48_V2.5_c",
+        "LTC2991_0x48_V1.8_v",  "LTC2991_0x48_V1.8_c",
+        "LTC2991_0x48_VCC",
+    ], d) +
+    _group_section("LTC2990 (0x4C) &mdash; Rail Voltages &amp; Currents", [
+        "LTC2990_0x4C_V1.2_v",  "LTC2990_0x4c_V1_2_c",
+        "LTC2990_0x4C_V3.3_v",  "LTC2990_0x4c_V3.3_c",
+        "LTC2990_0x4C_VCC",
+    ], d) +
+    _group_section("LTC2990 (0x4E) &mdash; Rail Voltages &amp; Currents", [
+        "LTC2990_0x4e_V0.9_v",         "LTC2990_0x4e_V0.9_c",
+        "LTC2990_0x4e_VCCPSPLL_1.2_v",
+        "LTC2990_0x4e_PSDDR4_v",
+        "LTC2990_0x4e_VCC",
+    ], d)
+)
 
 total_sensors = len(rp_dict.log04_wib)
-ok_sensors = sum(1 for v in rp_dict.log04_wib.values() if v is not None)
+ok_sensors = sum(1 for v in rp_dict.log04_wib.values() if isinstance(v, (int, float)))
 
 html_content = f"""
 <!DOCTYPE html>
@@ -735,18 +770,7 @@ html_content = f"""
 
         <!-- Sensor Readings -->
         <h2>I2C Sensor Readings</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Sensor</th>
-                    <th>Value</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {sensor_rows}
-            </tbody>
-        </table>
+        {grouped_sensor_html}
 
         <!-- Footer -->
         <div class="footer">

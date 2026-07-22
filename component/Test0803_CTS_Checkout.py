@@ -537,7 +537,7 @@ def process_board_removal(inform, slot_results):
         # else:
         #     print_status('warning', f"Removal cancelled for {slot_desc}.")
 
-    print("\n" + Fore.GREEN + "=" * 60)
+    print("\n" + "=" * 60)
     print("  All boards processed!")
     print("=" * 60 + Style.RESET_ALL)
 
@@ -651,7 +651,7 @@ def main():
 
     # Initialize power supply controller
     print_status('info', "Initializing power supply controller...")
-    psu = rigol.PowerSupplyController()
+    psu = rigol.RigolDP800()
 
     try:
         # Step 4: Run checkout test
@@ -694,7 +694,7 @@ def main():
         # Always power off, even on exceptions
         print_status('info', "Powering OFF WIB...")
         try:
-            psu.safe_power_off()
+            psu.turn_off_all()
             psu.close()
         except Exception as _e:
             print_status('warning', f"Power off error: {_e}")

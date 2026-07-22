@@ -23,6 +23,7 @@ def send_email(sender_email, sender_password, receiver_email, subject, body):
    message['To'] = ', '.join(recipients)
    message['Subject'] = subject
    message.attach(MIMEText(body, 'plain'))
+   server = None
    try:
        server = smtplib.SMTP('smtp.gmail.com', 587)
        server.starttls()
@@ -32,9 +33,9 @@ def send_email(sender_email, sender_password, receiver_email, subject, body):
        print("Please Check Email!")
    except Exception as e:
        print(f"Email send fail ... : {e}")
-
    finally:
-       server.quit()
+       if server:
+           server.quit()
 
 def send_email_with_attachment(sender_email, sender_password, receiver_email, subject, body, attachment_path=None):
     """

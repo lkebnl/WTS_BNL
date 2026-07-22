@@ -1,9 +1,9 @@
 {
-  "WIB_ID": "BNL_WIB_V3_I0-1750-1-F_00008",
-  "Foam_Box_ID": "https:__dbweb0.fnal.gov_cdbdev_view_component_D08104200001-00001",
-  "tester": "Shivam",
+  "WIB_ID": "toCERN 1B",
+  "Foam_Box_ID": "toCERN 1B",
+  "tester": "lke",
   "test_site": "BNL",
-  "start_time": "2026-06-04 16:20:41",
-  "report_dir": "/home/dune/Documents/WIB_QC/BNL_WIB_V3_I0-1750-1-F_00008_06_04_2026_16_20",
+  "start_time": "2026-07-17 12:15:07",
+  "report_dir": "/home/bnl-wib/Documents/WIB_QC/toCERN 1B_07_17_2026_12_15",
   "comment": "QC test"
 }

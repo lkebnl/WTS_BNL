@@ -753,8 +753,13 @@ def cts_ssh_FEMB(root="D:/FEMB_QC/", QC_TST_EN=0, input_info=None):
 
             command = [
                 "ssh", Config.WIB_HOST,
-                f"cd BNL_CE_WIB_SW_QC; python3 femb_assembly_chk.py {self.slot_list} save 5 LF"
+                f"cd BNL_CE_WIB_SW_QC; python3 femb_assembly_chk.py {self.slot_list} save 5 LF OW"
             ]
+
+            # command = [
+            #     "ssh", Config.WIB_HOST,
+            #     f"cd BNL_CE_WIB_SW_QC; python3 femb_assembly_chk.py {self.slot_list} save 5 LF OW"
+            # ]
 
             user_input = "\n".join([
                 self.input_info['tester'],
@@ -813,6 +818,7 @@ def cts_ssh_FEMB(root="D:/FEMB_QC/", QC_TST_EN=0, input_info=None):
 
             # Transfer raw data
             if not self._scp_transfer(wib_src, raw_dir):
+                print('no data transfer')
                 return None
             # If LN test, save additional data
             if self.is_ln_mode:
@@ -827,6 +833,8 @@ def cts_ssh_FEMB(root="D:/FEMB_QC/", QC_TST_EN=0, input_info=None):
 
         def _scp_transfer(self, src, dst):
             """Execute SCP transfer"""
+            dst = dst.replace(' ', '_')
+            src = src.replace(' ', '_')
             command = [f"scp -r {src} {dst}"]
             result = subrun(command, timeout=Config.SCP_TIMEOUT, check=False, out=False)
             time.sleep(0.01)
@@ -888,12 +896,9 @@ def cts_ssh_FEMB(root="D:/FEMB_QC/", QC_TST_EN=0, input_info=None):
             validation = {'all_passed': True, 'failed_slots': []}
 
             for slot in Config.VALID_SLOTS:
-                print('debug01')
                 if slot not in self.slot_list:
                     continue
-                print('debug02')
                 expected_msg = f'Slot {slot} PASS\t ALL ASSEMBLY CHECKOUT'
-                print('debug03')
                 if expected_msg in stdout:
                     print(f"\033[32mSLOT#{slot} CHECKOUT Normal\033[0m")
                     log.ck_log00[slot] = "pass"
@@ -1056,6 +1061,7 @@ def cts_ssh_FEMB(root="D:/FEMB_QC/", QC_TST_EN=0, input_info=None):
             # move folder
             command = ["scp -r " + fsrc + " " + fddir]
             result = subrun(command, timeout=100, check=False, out=False)
+            print(command)
             # if result != None:
             print("data save at {}".format(fddir))
             logs['pc_raw_dir'] = fddir  # later save it into log file

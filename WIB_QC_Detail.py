@@ -138,10 +138,10 @@ else:
 if 'WIB_ID' not in csv_data:
     csv_data['WIB_ID'] = 'H01'
 else:
-    csv_data['WIB_ID'] = WIB_id_0
+    csv_data['WIB_ID'] = WIB_id_0.replace(' ', '_')
 
 # Add Foam Box ID
-csv_data['Foam_Box_ID'] = foam_box_id
+csv_data['Foam_Box_ID'] = foam_box_id.replace(' ', '_')
 
 if 'test_site' not in csv_data:
     csv_data['test_site'] = 'BNL'
@@ -230,6 +230,10 @@ pop.show_image_popup(
 )
 update_heartbeat("Item0102_QSPI_Verify", timeout_minutes=7)
 subprocess.run([_PY,"./component/item0102_QSPI.py"])
+pop.show_image_popup(
+    title="Page 23: WIB QC SD card",
+    image_path=os.path.join(IMG_DIR, "23.png") if os.path.exists(os.path.join(IMG_DIR, "13.png")) else None
+)
 pop.show_image_popup(
     title="Page 22: WIB QC SD card",
     image_path=os.path.join(IMG_DIR, "22.png") if os.path.exists(os.path.join(IMG_DIR, "13.png")) else None

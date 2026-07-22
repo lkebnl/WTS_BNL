@@ -98,11 +98,13 @@ class RAW_CONV():
                         pass
                     j = j + 13
             else:
-                #pass
                 i = i + 1
-                print("Wrong data at addr = {}".format(i))
-                return None
+                # print("Wrong data at addr = {}".format(i))
+                continue          # resync: slide by 1 word and search for next valid frame
 
+        if len(chn_data[0]) < 512:          # not enough samples — treat as failed
+            print("Not enough valid samples ({})".format(len(chn_data[0])))
+            return None
         return chn_data
 
     def __init__(self):

@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado Lab Edition v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 10:01:48 MST 2025
+# 
+# 
+# Start of session at: Fri Jul 17 12:51:52 2026
+# Process ID         : 14041
+# Current directory  : /home/bnl-wib/Documents/WTS_BNL
+# Command line       : vivado_lab -mode batch -source ./file/Test07_vivado_tcl_command.tcl
+# Log file           : /home/bnl-wib/Documents/WTS_BNL/vivado_lab.log
+# Journal file       : /home/bnl-wib/Documents/WTS_BNL/vivado_lab.jou
+# Running On         : bnl-wib
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 24.04.2 LTS
+# Processor Detail   : Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
+# CPU Frequency      : 800.000 MHz
+# CPU Physical cores : 4
+# CPU Logical cores  : 8
+# Host memory        : 16619 MB
+# Swap memory        : 4294 MB
+# Total Virtual      : 20914 MB
+# Available Virtual  : 16760 MB
+#-----------------------------------------------------------
+source ./file/Test07_vivado_tcl_command.tcl

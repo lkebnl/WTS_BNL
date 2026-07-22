@@ -1,0 +1,196 @@
+#-----------------------------------------------------------
+# Vivado Lab Edition v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 10:01:48 MST 2025
+# 
+# 
+# Start of session at: Fri Jul 17 13:09:22 2026
+# Process ID         : 15103
+# Current directory  : /home/bnl-wib/Documents/WTS_BNL
+# Command line       : vivado_lab -mode batch -source file/eyeScan.tcl
+# Log file           : /home/bnl-wib/Documents/WTS_BNL/vivado_lab.log
+# Journal file       : /home/bnl-wib/Documents/WTS_BNL/vivado_lab.jou
+# Running On         : bnl-wib
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 24.04.2 LTS
+# Processor Detail   : Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
+# CPU Frequency      : 4500.115 MHz
+# CPU Physical cores : 4
+# CPU Logical cores  : 8
+# Host memory        : 16619 MB
+# Swap memory        : 4294 MB
+# Total Virtual      : 20914 MB
+# Available Virtual  : 16395 MB
+#-----------------------------------------------------------
+source file/eyeScan.tcl
+# set output_dir $::env(EYE_SCAN_OUTPUT_DIR)
+# puts "Eye scan output directory: $output_dir"
+Eye scan output directory: /home/bnl-wib/Documents/WIB_QC/toCERN 1B_07_17_2026_12_15/Test07_IBERT
+# open_hw_manager
+# connect_hw_server
+INFO: [Labtools 27-2285] Connecting to hw_server url TCP:localhost:3121
+INFO: [Labtools 27-3415] Connecting to cs_server url TCP:localhost:0
+INFO: [Labtools 27-3417] Launching cs_server...
+INFO: [Labtools 27-2221] Launch Output:
+
+
+******** Xilinx cs_server v2025.2.0
+  ****** Build date   : Nov 13 2025-18:16:52
+    **** Build number : 2025.2.1763075812
+      ** Copyright 2017-2022 Xilinx, Inc. All Rights Reserved.
+      ** Copyright 2022-2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
+
+
+# open_hw
+WARNING: 'open_hw' is deprecated, please use 'open_hw_manager' instead.
+# open_hw_target
+INFO: [Labtoolstcl 44-466] Opening hw_target localhost:3121/xilinx_tcf/Digilent/210249A74687
+# set device [lindex [get_hw_devices] 0]
+# refresh_hw_device $device
+INFO: [Labtools 27-2302] Device xczu6 (JTAG device index = 0) is programmed with a design that has 1 IBERT core(s).
+# refresh_hw_device [lindex [get_hw_devices] 0]
+INFO: [Labtools 27-2302] Device xczu6 (JTAG device index = 0) is programmed with a design that has 1 IBERT core(s).
+# set tx0 [lindex [get_hw_sio_txs] 0]
+# set rx0 [lindex [get_hw_sio_rxs] 0]
+# set link0 [create_hw_sio_link $tx0 $rx0]
+# set_property DESCRIPTION {Link 0} [get_hw_sio_links $link0]
+# set_property LOOPBACK "None" $link0
+# commit_hw_sio $link0
+# set scan0 [create_hw_sio_scan -description {Scan 0} 2d_full_eye [get_hw_sio_rxs -of $link0]]
+# run_hw_sio_scan [get_hw_sio_scans $scan0]
+# after 10000
+# write_hw_sio_scan -force "$output_dir/scan00_X0Y4.csv" [get_hw_sio_scans {SCAN_0}]
+# refresh_hw_device [lindex [get_hw_devices] 1]
+# set tx1 [lindex [get_hw_sio_txs] 1]
+# set rx1 [lindex [get_hw_sio_rxs] 1]
+# set link1 [create_hw_sio_link $tx1 $rx1]
+# set_property DESCRIPTION {Link 1} [get_hw_sio_links $link1]
+# set_property LOOPBACK "None" $link1
+# commit_hw_sio $link1
+# set scan1 [create_hw_sio_scan -description {Scan 1} 2d_full_eye [get_hw_sio_rxs -of $link1]]
+# run_hw_sio_scan [get_hw_sio_scans $scan1]
+# after 10000
+# write_hw_sio_scan -force "$output_dir/scan01_X0Y5.csv" [get_hw_sio_scans {SCAN_1}]
+# puts ""
+
+# puts "ZYNQ_INFO_START"
+ZYNQ_INFO_START
+INFO: [Labtools 27-2302] Device xczu6 (JTAG device index = 0) is programmed with a design that has 1 IBERT core(s).
+ZYNQ_PART: xczu6
+ZYNQ_IDCODE: 00100100011100111001000010010011
+ZYNQ_JTAG_DEV_0: xczu6_0 | xczu6
+ZYNQ_JTAG_DEV_1: arm_dap_1 | arm_dap
+ZYNQ_JTAG_DEV_COUNT: 2
+# set rc_a [catch {
+#     set zynq_dev [lindex [get_hw_devices] 0]
+#     refresh_hw_device $zynq_dev
+# 
+#     # Part name — always works
+#     set zynq_part [get_property PART $zynq_dev]
+#     puts "ZYNQ_PART: $zynq_part"
+# 
+#     # IDCODE — correct property for UltraScale+ is IDCODE (not REGISTER.IDCODE)
+#     catch {
+#         set zynq_idcode [get_property IDCODE $zynq_dev]
+#         puts "ZYNQ_IDCODE: $zynq_idcode"
+#     }
+# 
+#     # Config Done — property name varies by family; try the two common names
+#     catch {
+#         set _done_found 0
+#         foreach _dp {REGISTER.CONFIG.DONE CONTROL.DONE STATUS.DONE} {
+#             if {![catch {set zynq_done [get_property $_dp $zynq_dev]}]} {
+#                 puts "ZYNQ_CONFIG_DONE: $zynq_done"
+#                 set _done_found 1
+#                 break
+#             }
+#         }
+#     }
+# 
+#     # Device DNA — 96-bit unique identifier for board traceability
+#     catch {
+#         set zynq_dna [get_property REGISTER.DNA_PORT $zynq_dev]
+#         puts "ZYNQ_DNA: $zynq_dna"
+#     }
+# 
+#     # Enumerate all devices in JTAG chain (PS ARM DAP + PL TAP)
+#     set chain_idx 0
+#     foreach dev [get_hw_devices] {
+#         set dev_name [get_property NAME $dev]
+#         set dev_part [get_property PART $dev]
+#         puts "ZYNQ_JTAG_DEV_${chain_idx}: ${dev_name} | ${dev_part}"
+#         incr chain_idx
+#     }
+#     puts "ZYNQ_JTAG_DEV_COUNT: $chain_idx"
+# } err_a]
+# if {$rc_a != 0} {
+#     puts "ZYNQ_PART_A_ERROR: $err_a"
+# }
+WARNING: [Labtoolstcl 44-226] No matching hw_axi were found
+ZYNQ_PS_ACCESS: no hw_axis available (IBERT bitstream has no JTAG-to-AXI Master)
+# set rc_c [catch {
+#     set axis_list [get_hw_axis]
+#     if {[llength $axis_list] > 0} {
+#         set axim [lindex $axis_list 0]
+#         puts "ZYNQ_PS_AXIS_FOUND: [get_property NAME $axim]"
+# 
+#         # CRL_APB BOOT_MODE_USER (0xFF5E0200) — active boot mode
+#         catch {
+#             create_hw_axi_txn boot_rd $axim -type READ -address 0xFF5E0200 -len 1 -size 32
+#             run_hw_axi_txn [get_hw_axi_txns boot_rd]
+#             puts "ZYNQ_PS_BOOT_MODE: [get_property DATA [get_hw_axi_txns boot_rd]]"
+#             delete_hw_axi_txn [get_hw_axi_txns boot_rd]
+#         }
+# 
+#         # CRL_APB BOOT_MODE_POR (0xFF5E0204) — boot mode sampled at power-on reset
+#         catch {
+#             create_hw_axi_txn por_rd $axim -type READ -address 0xFF5E0204 -len 1 -size 32
+#             run_hw_axi_txn [get_hw_axi_txns por_rd]
+#             puts "ZYNQ_PS_BOOT_MODE_POR: [get_property DATA [get_hw_axi_txns por_rd]]"
+#             delete_hw_axi_txn [get_hw_axi_txns por_rd]
+#         }
+# 
+#         # CSU IDCODE (0xFFCA0040) — PS silicon IDCODE
+#         catch {
+#             create_hw_axi_txn csuid_rd $axim -type READ -address 0xFFCA0040 -len 1 -size 32
+#             run_hw_axi_txn [get_hw_axi_txns csuid_rd]
+#             puts "ZYNQ_PS_CSU_IDCODE: [get_property DATA [get_hw_axi_txns csuid_rd]]"
+#             delete_hw_axi_txn [get_hw_axi_txns csuid_rd]
+#         }
+# 
+#         # CSU VERSION (0xFFCA0044) — silicon revision; bits[27:24] = PS_VERSION
+#         catch {
+#             create_hw_axi_txn ver_rd $axim -type READ -address 0xFFCA0044 -len 1 -size 32
+#             run_hw_axi_txn [get_hw_axi_txns ver_rd]
+#             puts "ZYNQ_PS_CSU_VERSION: [get_property DATA [get_hw_axi_txns ver_rd]]"
+#             delete_hw_axi_txn [get_hw_axi_txns ver_rd]
+#         }
+# 
+#         # CSU STATUS (0xFFCA0010) — boot/init status flags
+#         catch {
+#             create_hw_axi_txn csu_st $axim -type READ -address 0xFFCA0010 -len 1 -size 32
+#             run_hw_axi_txn [get_hw_axi_txns csu_st]
+#             puts "ZYNQ_PS_CSU_STATUS: [get_property DATA [get_hw_axi_txns csu_st]]"
+#             delete_hw_axi_txn [get_hw_axi_txns csu_st]
+#         }
+#     } else {
+#         puts "ZYNQ_PS_ACCESS: no hw_axis available (IBERT bitstream has no JTAG-to-AXI Master)"
+#     }
+# } err_c]
+# if {$rc_c != 0} {
+#     puts "ZYNQ_PS_ERROR: $err_c"
+# }
+# catch {
+#     set info_fh [open "$output_dir/zynq_device_info.txt" w]
+#     puts $info_fh "ZYNQ U+ Device Information"
+#     puts $info_fh "Timestamp: [clock format [clock seconds] -format {%Y-%m-%d %H:%M:%S}]"
+#     puts $info_fh "--------------------------------------------"
+#     if {[info exists zynq_part]}   { puts $info_fh "Part:         $zynq_part" }
+#     if {[info exists zynq_idcode]} { puts $info_fh "IDCODE:       $zynq_idcode" }
+#     if {[info exists zynq_done]}   { puts $info_fh "Config Done:  $zynq_done" }
+#     if {[info exists zynq_dna]}    { puts $info_fh "DNA:          $zynq_dna" }
+#     close $info_fh
+# }
+# puts "ZYNQ_INFO_END"
+ZYNQ_INFO_END
+INFO: [Common 17-206] Exiting vivado_lab at Fri Jul 17 13:09:49 2026...

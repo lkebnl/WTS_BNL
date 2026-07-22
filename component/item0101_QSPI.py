@@ -202,7 +202,8 @@ def run_qspi_load(com_port, psu):
         # Step 4: send poweroff, wait 60 s, then PSU off
         # ----------------------------------------------------------------
         print("\nSending: poweroff")
-        ser.write(b'poweroff\n')
+        # ser.write(b'poweroff\n')
+        ser.write(b'systemctl poweroff\r\n')
         print(f"Waiting {POWEROFF_WAIT_S} s for OS shutdown...")
 
         shutdown_deadline = time.time() + POWEROFF_WAIT_S

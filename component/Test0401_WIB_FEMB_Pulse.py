@@ -38,8 +38,13 @@ import function.rigol_dp832_ps as Power  # import power component
 from function.ping_host import ping_host
 import platform
 import subprocess
+import GUI.send_email as send_email
 
 ## =========================================
+SENDER_EMAIL    = "bnlr216@gmail.com"
+SENDER_PASSWORD = "vvef tosp minf wwhf"
+RECEIVER_EMAIL  = "lke@bnl.gov"
+_MAX_AUTO_RETRY = 3
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -347,7 +352,7 @@ time.sleep(0.5)  # Reduced from 1s to 0.5s
 print(c1)
 print(c2)
 
-time.sleep(15)  # Reduced from 20s to 15s - wait for boot
+time.sleep(30)  # Reduced from 20s to 15s - wait for boot
 
 print("Power is acquired, Please start")
 timing_dict["01_Power_Startup"] = time.time() - t1
@@ -675,7 +680,7 @@ for fembi in [1]:
     tcp.set_fe_board(sts=1, snc=0, sg0=0, sg1=0, st0=1, st1=1, swdac=1, dac=0x10)
     tcp.set_fe_sync()
     tcp.femb_cfg()
-    time.sleep(5)
+    time.sleep(0.5)
     # check channel response
     print("Check channel response")
 
@@ -698,9 +703,30 @@ for fembi in [1]:
     time.sleep(0.01)
     data = udp.get_rawdata_packets(val=1000)
 
-    femb_data = []
-    dset = [[] for i in range(128)]
-    while True:
+    def _notify_and_ask(femb_id, reason, attempt):
+        """Send failure email then ask tester to retry or skip."""
+        subject = f"[WIB QC] FEMB{femb_id} data acquisition/analysis FAILED"
+        body = (f"FEMB{femb_id} failed after {attempt} attempt(s).\n"
+                f"Reason: {reason}\n\n"
+                f"Please check the hardware and choose to retry or skip.")
+        print_fail(f"\n  ✉  Sending failure notification email ...")
+        send_email.send_email(SENDER_EMAIL, SENDER_PASSWORD, RECEIVER_EMAIL, subject, body)
+        choice = ""
+        while choice not in ("r", "s"):
+            choice = input(
+                f"\n  Failed {attempt}/{_MAX_AUTO_RETRY} times.\n"
+                "  [r] Retry from beginning  /  [s] Skip this FEMB: "
+            ).strip().lower()
+        return choice
+
+    dset     = [[] for i in range(128)]
+    ana      = None
+    _attempt = 0
+    _done    = False
+
+    while not _done:
+        femb_data = []                  # reset each attempt — no stale data
+        end_while = False
         if os.path.isfile(hdf_fp):
             os.remove(hdf_fp)
         with h5py.File(hdf_fp, "a") as f:
@@ -708,13 +734,24 @@ for fembi in [1]:
                 print("FEMB{} ASIC{} is selected".format(femb, asic))
                 asic = asic & 0x0F
                 wib_asic = (((femb << 16) & 0x000F0000) + ((asic << 8) & 0xFF00))
-                udp.write_reg_wib_checked(7, 0x80000000)
-                udp.write_reg_wib_checked(7, wib_asic | 0x80000000)
-                udp.write_reg_wib_checked(7, wib_asic)
-                time.sleep(0.01)
-                val = 1000
-                data = udp.get_rawdata_packets(val=val)
-                chip_data = conv.raw_conv_feedloc(data)
+
+                chip_data = None
+                for _asic_try in range(3):              # up to 3 attempts per ASIC
+                    # enable ASIC 3 times to ensure it is properly activated
+                    for _ in range(3):
+                        udp.write_reg_wib_checked(7, 0x80000000)
+                        udp.write_reg_wib_checked(7, wib_asic | 0x80000000)
+                        udp.write_reg_wib_checked(7, wib_asic)
+                        time.sleep(0.1)
+                    time.sleep(5.0)                     # wait 5s for COLDADC to stabilise after enable
+                    udp.get_rawdata_packets(val=200)    # discard stale/transition packets
+                    data = udp.get_rawdata_packets(val=1000)
+                    chip_data = conv.raw_conv_feedloc(data)
+                    if chip_data is not None:
+                        break
+                    print(f"    ASIC {asic} parse failed (attempt {_asic_try+1}/3), retrying ...")
+                    time.sleep(0.5)
+
                 if chip_data is not None:
                     end_while = True
                     femb_data.append(chip_data)
@@ -725,12 +762,40 @@ for fembi in [1]:
                     print_pass(f"    ✓ ASIC {asic} data acquired successfully")
                 else:
                     end_while = False
-                    print_fail(f"    ✗ ASIC {asic} data acquisition FAILED")
+                    print_fail(f"    ✗ ASIC {asic} data acquisition FAILED after 3 attempts")
                     print(TROUBLESHOOT["asic_readout_fail"])
+
+            # ── acquisition failed ────────────────────────────────────────
+            if not end_while:
+                _attempt += 1
+                if _attempt < _MAX_AUTO_RETRY:
+                    print(f"\n  Auto-retry {_attempt}/{_MAX_AUTO_RETRY} after acquisition failure ...")
+                    continue
+                choice = _notify_and_ask(femb, "ASIC data acquisition failed", _attempt)
+                if choice == "r":
+                    _attempt = 0
+                    continue
+                else:
+                    _done = True
+                    break
+
+            # ── data analysis ─────────────────────────────────────────────
             print("Start data analysis...")
-            ana = chkout_top.data_ana(femb_data)
-            if end_while:
-                break
+            try:
+                ana   = chkout_top.data_ana(femb_data)
+                _done = True
+            except Exception as _ana_err:
+                _attempt += 1
+                if _attempt < _MAX_AUTO_RETRY:
+                    print(f"\n  Auto-retry {_attempt}/{_MAX_AUTO_RETRY} after analysis failure: {_ana_err}")
+                    continue
+                choice = _notify_and_ask(femb, f"data_ana error: {_ana_err}", _attempt)
+                if choice == "r":
+                    _attempt = 0
+                    continue
+                else:
+                    ana   = None
+                    _done = True
 
     print("Measure power consumption...")
     pwr_info = tcp.femb_pwr_rd(femb=femb)
@@ -753,9 +818,12 @@ for fembi in [1]:
     result_dict["power_vcd_meas_diff"] = pwr_info_diff[2]
     result_dict["power_bias_meas_diff"] = pwr_info_diff[4]
 
-    fn = chkout_top.FEMB_PLOT(ana[0], ana[1], ana[2], ana[3], ana[4], ana[5], save_dir)
-    result_dict["response.png"] = fn
-    result_dict["data_acq_status"] = "PASS" if end_while else "FAIL"
+    if ana is not None:
+        fn = chkout_top.FEMB_PLOT(ana[0], ana[1], ana[2], ana[3], ana[4], ana[5], save_dir)
+        result_dict["response.png"] = fn
+    else:
+        result_dict["response.png"] = "SKIPPED"
+    result_dict["data_acq_status"] = "PASS" if (ana is not None and end_while) else "FAIL"
     timing_dict["08_Data_Acquisition"] = time.time() - t1
 
     # Add timing information to result_dict

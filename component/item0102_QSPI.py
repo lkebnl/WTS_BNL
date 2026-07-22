@@ -66,6 +66,17 @@ def print_fail(msg):
 def print_warning(msg):
     print(f"\033[33m{msg}\033[0m")
 
+def ask_retry_skip_exit(label):
+    """Prompt user for Retry / Skip / Exit and return 'retry', 'skip', or 'exit'."""
+    while True:
+        choice = input(f"{label}\nOptions:\n  [R] Retry\n  [S] Skip\n  [E] Exit\nChoice (R/S/E): ").strip().upper()
+        if choice == 'R':
+            return 'retry'
+        elif choice == 'S':
+            return 'skip'
+        elif choice == 'E':
+            return 'exit'
+
 
 # ============================================================================
 # UART helpers
@@ -124,7 +135,7 @@ def send_uart_cmd(ser, cmd, timeout=CMD_TIMEOUT_S):
     return output
 
 
-def run_qspi_verify(com_port):
+def run_qspi_verify(com_port, psu=None):
     """
     Open UART, detect QSPI boot, run devmem commands, ping, then poweroff.
 
@@ -203,6 +214,7 @@ def run_qspi_verify(com_port):
             time.sleep(20)
             print_header("Step 3a: devmem configuration")
             out1 = send_uart_cmd(ser, DEVMEM_CMD1)
+            out1 = send_uart_cmd(ser, DEVMEM_CMD1)
             devmem1_ok = 'root@DUNE_WIB_QSPI' in out1
             if devmem1_ok:
                 print_pass(f"devmem cmd1 OK")
@@ -210,25 +222,47 @@ def run_qspi_verify(com_port):
                 print_fail(f"devmem cmd1 no shell response")
 
             out2 = send_uart_cmd(ser, DEVMEM_CMD2)
+            out2 = send_uart_cmd(ser, DEVMEM_CMD2)
+            out2 = send_uart_cmd(ser, DEVMEM_CMD2)
             devmem2_ok = 'root@DUNE_WIB_QSPI' in out2
             if devmem2_ok:
                 print_pass(f"devmem cmd2 OK")
             else:
                 print_fail(f"devmem cmd2 no shell response")
-            time.sleep(5)
-            # input('lingyun')
+            time.sleep(10)
             print_header(f"Step 3b: Ping {PING_TARGET}")
-            ping_ok = ping_host(ip_address=PING_TARGET, count=4)
-            if ping_ok:
-                print_pass(f"Ping {PING_TARGET} PASS")
-            else:
-                print_fail(f"Ping {PING_TARGET} FAIL")
+            while True:
+                for attempt in range(1, 4):
+                    print(f"  Ping attempt {attempt}/3 ...")
+                    ping_ok = ping_host(ip_address=PING_TARGET, count=4)
+                    if ping_ok:
+                        print_pass(f"Ping {PING_TARGET} PASS")
+                        break
+                    print_fail(f"  Attempt {attempt}/3 failed.")
+                    if attempt < 3:
+                        time.sleep(3)
+                if ping_ok:
+                    break
+                action = ask_retry_skip_exit(f"Ping {PING_TARGET} failed after 3 attempts.")
+                if action == 'retry':
+                    continue
+                elif action == 'skip':
+                    print_warning("Ping skipped by user.")
+                    break
+                else:  # exit
+                    print_fail("Aborted by user.")
+                    ser.close()
+                    if psu:
+                        psu.safe_power_off()
+                        psu.close()
+                    sys.exit(1)
 
         # ----------------------------------------------------------------
         # Step 4: poweroff — detect kernel shutdown complete signal
         # ----------------------------------------------------------------
         print_header("Step 4: Poweroff")
-        ser.write(b'poweroff\r\n')
+        # ser.write(b'poweroff\r\n')
+        ser.write(b'systemctl poweroff\r\n')
         print(f"Waiting for OS shutdown (timeout: {POWEROFF_WAIT_S} s)...")
 
         shutdown_deadline = time.time() + POWEROFF_WAIT_S
@@ -313,6 +347,7 @@ def main():
     print_header("Step 1: Power On")
     psu.set_channel(1, 12.0, 3.0, on=True)
     psu.set_channel(2, 12.0, 3.0, on=True)
+    time.sleep(2)
     v1, c1 = psu.measure(1)
     v2, c2 = psu.measure(2)
     print(f"  Ch1: {v1:.3f}V {c1:.3f}A   Ch2: {v2:.3f}V {c2:.3f}A")
@@ -331,7 +366,7 @@ def main():
 
     if com_port is not None:
         print_header("Steps 2–4: UART / QSPI Verify / Poweroff")
-        qspi_boot_ok, devmem1_ok, devmem2_ok, ping_ok, poweroff_ok, note = run_qspi_verify(com_port)
+        qspi_boot_ok, devmem1_ok, devmem2_ok, ping_ok, poweroff_ok, note = run_qspi_verify(com_port, psu)
         uart_ok = True
 
     boot_info = getattr(rp_dict, 'log_qspi_boot', {})

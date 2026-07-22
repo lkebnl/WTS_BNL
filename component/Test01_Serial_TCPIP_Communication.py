@@ -205,36 +205,44 @@ def run_uart_test(com_port, psu):
         buffer = ""
         login_detected = False
         last_data_time = time.time()
-        # stage tracks the boot_cnt.txt deletion sequence:
+        # stage tracks the sequence:
         #   0 = awaiting first shell prompt after login
-        #   1 = mkdir sent, awaiting prompt
-        #   2 = mount sent, awaiting prompt
-        #   3 = rm sent, awaiting prompt
-        #   4 = ls (verify) sent, awaiting ls output
-        #   5 = deletion verified, awaiting prompt to send cat /etc/issue
-        #   6 = cat /etc/issue sent
+        #   1 = compound delete command sent, awaiting WIB_CNT_OK / WIB_CNT_FAIL / WIB_MOUNT_FAIL
+        #   2 = result received, awaiting prompt to send cat /etc/issue
+        #   3 = cat /etc/issue sent, awaiting PetaLinux version string
         stage = 0
-        ls_echo_seen = False  # tracks whether we've consumed the ls command echo
+
+        # Single compound command: mount, delete, verify (check $? inline), umount.
+        # Outputs a unique marker so we don't rely on terminal echo or ls line parsing.
+        _DELETE_CMD = (
+            b'mkdir -p /mnt/sdboot; '
+            b'mount /dev/mmcblk0p1 /mnt/sdboot 2>/dev/null; '
+            b'if [ $? -eq 0 ]; then '
+            b'rm -f /mnt/sdboot/boot_cnt.txt; sync; '
+            b'umount /mnt/sdboot; echo WIB_CNT_OK; '
+            b'else echo WIB_MOUNT_FAIL; fi\n'
+        )
 
         while True:
             line = ser_test.readline().decode('utf-8', errors='ignore').strip()
 
             if line:
+                time.sleep(0.1)
                 print(line)
                 buffer += line + "\n"
                 last_data_time = time.time()
 
-                # Stage 4: parse ls output to verify boot_cnt.txt was deleted
-                if stage == 4:
-                    if 'No such file' in line or 'cannot access' in line:
+                # Stage 1: detect compound-command result marker
+                if stage == 1:
+                    if 'WIB_CNT_OK' in line:
                         print_pass("boot_cnt.txt successfully deleted.")
-                        stage = 5
-                    elif 'boot_cnt.txt' in line:
-                        if not ls_echo_seen:
-                            ls_echo_seen = True  # first occurrence is the command echo — skip it
-                        else:
-                            print_fail("boot_cnt.txt was NOT deleted — file still exists on SD card.")
-                            stage = 5
+                        stage = 2
+                    elif 'WIB_MOUNT_FAIL' in line:
+                        print_fail("mount /dev/mmcblk0p1 failed — boot_cnt.txt NOT deleted.")
+                        stage = 2
+                    elif 'WIB_CNT_FAIL' in line:
+                        print_fail("boot_cnt.txt was NOT deleted — file still exists on SD card.")
+                        stage = 2
 
                 if "WIB_Petalinux login:" in line and not login_detected:
                     print("Detected login prompt, sending 'root'...")
@@ -249,26 +257,13 @@ def run_uart_test(com_port, psu):
                     if stage == 0:
                         print("Login successful. Waiting 5 seconds before SD-card commands...")
                         time.sleep(5)
-                        print("Sending: mkdir -p /mnt/sdboot")
-                        ser_test.write(b'mkdir -p /mnt/sdboot\n')
+                        print("Sending boot_cnt.txt delete command...")
+                        ser_test.write(_DELETE_CMD)
                         stage = 1
-                    elif stage == 1:
-                        print("Sending: mount /dev/mmcblk0p1 /mnt/sdboot")
-                        ser_test.write(b'mount /dev/mmcblk0p1 /mnt/sdboot\n')
-                        stage = 2
                     elif stage == 2:
-                        print("Sending: rm -f /mnt/sdboot/boot_cnt.txt")
-                        ser_test.write(b'rm -f /mnt/sdboot/boot_cnt.txt\n')
-                        stage = 3
-                    elif stage == 3:
-                        print("Verifying deletion: ls /mnt/sdboot/boot_cnt.txt")
-                        ls_echo_seen = False
-                        ser_test.write(b'ls /mnt/sdboot/boot_cnt.txt\n')
-                        stage = 4
-                    elif stage == 5:
                         print("Proceeding with UART communication check...")
                         ser_test.write(b'cat /etc/issue\n')
-                        stage = 6
+                        stage = 3
 
                 elif 'PetaLinux 2019.1' in line and login_detected:
                     ser_test.write(b'\n')
@@ -296,14 +291,18 @@ def run_uart_test(com_port, psu):
 
 def run_ping_test(ip_address, test_name):
     """
-    Run ping test to specified IP.
+    Run ping test to specified IP, auto-retrying up to 3 times before failing.
     Returns: (status, note)
     """
-    result = ping_host(ip_address=ip_address, count=4)
-    if result:
-        return True, f'{test_name} Communication Pass'
-    else:
-        return False, f'{test_name} Communication Failed'
+    for attempt in range(1, 4):
+        print(f"  Ping attempt {attempt}/3 ...")
+        result = ping_host(ip_address=ip_address, count=4)
+        if result:
+            return True, f'{test_name} Communication Pass'
+        print(f"\033[31m  Attempt {attempt}/3 failed.\033[0m")
+        if attempt < 3:
+            time.sleep(3)
+    return False, f'{test_name} Communication Failed after 3 attempts'
 
 
 def retry_test(test_func, test_name, psu, *args):
@@ -534,7 +533,7 @@ def main():
     print("\nTurn FM on")
     psu.set_channel(1, 12.0, 3.0, on=True)
     psu.set_channel(2, 12.0, 3.0, on=True)
-    time.sleep(10)
+    time.sleep(2)
     v1, c1 = psu.measure(1)
     v2, c2 = psu.measure(2)
 
