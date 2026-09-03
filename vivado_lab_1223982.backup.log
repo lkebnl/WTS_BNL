@@ -3,25 +3,25 @@
 # SW Build 6299465 on Fri Nov 14 10:01:48 MST 2025
 # 
 # 
-# Start of session at: Fri Jul 17 12:51:52 2026
-# Process ID         : 14041
+# Start of session at: Thu Sep  3 16:02:41 2026
+# Process ID         : 1223982
 # Current directory  : /home/bnl-wib/Documents/WTS_BNL
-# Command line       : vivado_lab -mode batch -source ./file/Test07_vivado_tcl_command.tcl
+# Command line       : vivado_lab -mode batch -source file/tcl_02.tcl
 # Log file           : /home/bnl-wib/Documents/WTS_BNL/vivado_lab.log
 # Journal file       : /home/bnl-wib/Documents/WTS_BNL/vivado_lab.jou
 # Running On         : bnl-wib
 # Platform           : Ubuntu
 # Operating System   : Ubuntu 24.04.2 LTS
 # Processor Detail   : Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
-# CPU Frequency      : 800.000 MHz
+# CPU Frequency      : 4499.911 MHz
 # CPU Physical cores : 4
 # CPU Logical cores  : 8
 # Host memory        : 16619 MB
 # Swap memory        : 4294 MB
 # Total Virtual      : 20914 MB
-# Available Virtual  : 16760 MB
+# Available Virtual  : 12999 MB
 #-----------------------------------------------------------
-source ./file/Test07_vivado_tcl_command.tcl
+source file/tcl_02.tcl
 # open_hw_manager
 # connect_hw_server
 INFO: [Labtools 27-2285] Connecting to hw_server url TCP:localhost:3121
@@ -46,14 +46,11 @@ INFO: [Labtools 27-2221] Launch Output:
 
 
 
+# open_hw
+WARNING: 'open_hw' is deprecated, please use 'open_hw_manager' instead.
 # open_hw_target
 INFO: [Labtoolstcl 44-466] Opening hw_target localhost:3121/xilinx_tcf/Digilent/210249A74687
 # set device [lindex [get_hw_devices] 0]
-# set_property PROGRAM.FILE "/home/bnl-wib/Documents/WTS_BNL/file/example_ibert_ultrascale_gth_0.bit" $device
-# program_hw_devices $device
-INFO: [Labtools 27-3164] End of startup status: HIGH
-program_hw_devices: Time (s): cpu = 00:00:22 ; elapsed = 00:00:22 . Memory (MB): peak = 1736.996 ; gain = 68.137 ; free physical = 3815 ; free virtual = 15475
-# set_property PROBES.FILE "/home/bnl-wib/Documents/WTS_BNL/file/example_ibert_ultrascale_gth_0.ltx" $device
 # refresh_hw_device $device
 INFO: [Labtools 27-2302] Device xczu6 (JTAG device index = 0) is programmed with a design that has 1 IBERT core(s).
 # detect_hw_sio_links
@@ -92,31 +89,31 @@ IBERT RX Channel BER Report:
 #     #Bit Errors second BEN
 #     #Total Received Bits second TCB
 #     puts "RX Channel First: $rx"
-#     puts "  BER: $ber"
-#     puts "  ERROR_count: $error_count"
-#     puts "  BIT_count: $bit_count"
+#     puts " $rx Total_BER: $ber"
+#     puts " $rx Total_ERROR_count: $error_count"
+#     puts " $rx Total_BIT_count: $bit_count"
 #     puts "--------------------------------------"
 # }
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX
-  BER: 1.0810968514596566e-07
-  ERROR_count: 00000000004B
-  BIT_count: 693739880
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_BER: 9.9148478357846841e-14
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_ERROR_count: 000000000000
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX Total_BIT_count: 10085883480640
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX
-  BER: 7.2005146965310354e-08
-  ERROR_count: 00000000004D
-  BIT_count: 1069368000
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_BER: 9.9139813706570302e-14
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_ERROR_count: 000000000000
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX Total_BIT_count: 10086764969720
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX
-  BER: 0.57489346901152927
-  ERROR_count: 00002F8D8F1D
-  BIT_count: 1387746440
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_BER: 0.59999994681764224
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_ERROR_count: 057C606951FA
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX Total_BIT_count: 10052920222040
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX
-  BER: 0.57497712894457098
-  ERROR_count: 00003A7099DA
-  BIT_count: 1705212080
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_BER: 0.4249999890721663
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_ERROR_count: 03E607A9ABA2
+ localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX Total_BIT_count: 10085896545080
 --------------------------------------
 # close_hw_manager
 # exit
-INFO: [Common 17-206] Exiting vivado_lab at Fri Jul 17 12:52:22 2026...
+INFO: [Common 17-206] Exiting vivado_lab at Thu Sep  3 16:02:49 2026...

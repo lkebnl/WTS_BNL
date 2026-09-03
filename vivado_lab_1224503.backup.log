@@ -3,8 +3,8 @@
 # SW Build 6299465 on Fri Nov 14 10:01:48 MST 2025
 # 
 # 
-# Start of session at: Wed Jun 17 15:36:30 2026
-# Process ID         : 481674
+# Start of session at: Thu Sep  3 16:03:01 2026
+# Process ID         : 1224503
 # Current directory  : /home/bnl-wib/Documents/WTS_BNL
 # Command line       : vivado_lab -mode batch -source file/eyeScan.tcl
 # Log file           : /home/bnl-wib/Documents/WTS_BNL/vivado_lab.log
@@ -13,18 +13,18 @@
 # Platform           : Ubuntu
 # Operating System   : Ubuntu 24.04.2 LTS
 # Processor Detail   : Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
-# CPU Frequency      : 4500.020 MHz
+# CPU Frequency      : 4500.040 MHz
 # CPU Physical cores : 4
 # CPU Logical cores  : 8
 # Host memory        : 16619 MB
 # Swap memory        : 4294 MB
 # Total Virtual      : 20914 MB
-# Available Virtual  : 13136 MB
+# Available Virtual  : 12797 MB
 #-----------------------------------------------------------
 source file/eyeScan.tcl
 # set output_dir $::env(EYE_SCAN_OUTPUT_DIR)
 # puts "Eye scan output directory: $output_dir"
-Eye scan output directory: /home/bnl-wib/Documents/WIB_QC/F12_06_17_2026_12_04/Test07_IBERT
+Eye scan output directory: /home/bnl-wib/Documents/WIB_QC/BNL_WIB_V3_I0-1750-1-F_00022_09_03_2026_15_06/Test07_IBERT
 # open_hw_manager
 # connect_hw_server
 INFO: [Labtools 27-2285] Connecting to hw_server url TCP:localhost:3121
@@ -193,4 +193,4 @@ ZYNQ_PS_ACCESS: no hw_axis available (IBERT bitstream has no JTAG-to-AXI Master)
 # }
 # puts "ZYNQ_INFO_END"
 ZYNQ_INFO_END
-INFO: [Common 17-206] Exiting vivado_lab at Wed Jun 17 15:36:57 2026...
+INFO: [Common 17-206] Exiting vivado_lab at Thu Sep  3 16:03:28 2026...

@@ -31,7 +31,7 @@ from function.report_path import get_report_dir
 
 # ── Configuration ────────────────────────────────────────
 # Default image path (can be overridden by wib_info.csv)
-DEFAULT_IMAGE_PATH = "/home/dune/QSFP_Production.img"
+DEFAULT_IMAGE_PATH = "/home/dune/production_SD_233.img"
 TARGET_SIZE_GB = 32
 SIZE_TOLERANCE_GB = 4
 WIB_INFO_PATH = os.path.join(os.path.dirname(__file__), '..', 'file', 'wib_info.csv')

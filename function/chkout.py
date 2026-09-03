@@ -584,6 +584,7 @@ def generate_report(result_dict):
                             <th>ADC VCMO (mV)</th>
                             <th>ADC VREFP (mV)</th>
                             <th>ADC VREFN (mV)</th>
+                            <th>Status</th>
                         </tr>"""
 
     for asic in [0, 4]:
@@ -592,6 +593,8 @@ def generate_report(result_dict):
         vcmo = int(adc_meas[2][0]) if len(adc_meas) > 2 and len(adc_meas[2]) > 0 else 0
         vrefp = int(adc_meas[3][0]) if len(adc_meas) > 3 and len(adc_meas[3]) > 0 else 0
         vrefn = int(adc_meas[4][0]) if len(adc_meas) > 4 and len(adc_meas[4]) > 0 else 0
+        adc_status = result_dict.get(f"adc{asic:02d}_status", "UNKNOWN")
+        status_color = "green" if adc_status == "PASS" else "red"
 
         html_content += f"""
                         <tr>
@@ -600,6 +603,7 @@ def generate_report(result_dict):
                             <td>{vcmo}</td>
                             <td>{vrefp}</td>
                             <td>{vrefn}</td>
+                            <td style="color:{status_color}">{adc_status}</td>
                         </tr>"""
 
     html_content += """

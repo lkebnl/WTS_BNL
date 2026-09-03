@@ -3,8 +3,8 @@
 # SW Build 6299465 on Fri Nov 14 10:01:48 MST 2025
 # 
 # 
-# Start of session at: Wed Jun 17 15:35:31 2026
-# Process ID         : 480772
+# Start of session at: Thu Sep  3 15:45:30 2026
+# Process ID         : 1223229
 # Current directory  : /home/bnl-wib/Documents/WTS_BNL
 # Command line       : vivado_lab -mode batch -source ./file/Test07_vivado_tcl_command.tcl
 # Log file           : /home/bnl-wib/Documents/WTS_BNL/vivado_lab.log
@@ -13,13 +13,13 @@
 # Platform           : Ubuntu
 # Operating System   : Ubuntu 24.04.2 LTS
 # Processor Detail   : Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz
-# CPU Frequency      : 4499.968 MHz
+# CPU Frequency      : 4500.089 MHz
 # CPU Physical cores : 4
 # CPU Logical cores  : 8
 # Host memory        : 16619 MB
 # Swap memory        : 4294 MB
 # Total Virtual      : 20914 MB
-# Available Virtual  : 13296 MB
+# Available Virtual  : 13101 MB
 #-----------------------------------------------------------
 source ./file/Test07_vivado_tcl_command.tcl
 # open_hw_manager
@@ -52,7 +52,7 @@ INFO: [Labtoolstcl 44-466] Opening hw_target localhost:3121/xilinx_tcf/Digilent/
 # set_property PROGRAM.FILE "/home/bnl-wib/Documents/WTS_BNL/file/example_ibert_ultrascale_gth_0.bit" $device
 # program_hw_devices $device
 INFO: [Labtools 27-3164] End of startup status: HIGH
-program_hw_devices: Time (s): cpu = 00:00:22 ; elapsed = 00:00:22 . Memory (MB): peak = 1856.992 ; gain = 195.996 ; free physical = 281 ; free virtual = 12299
+program_hw_devices: Time (s): cpu = 00:00:22 ; elapsed = 00:00:22 . Memory (MB): peak = 1864.996 ; gain = 196.137 ; free physical = 3630 ; free virtual = 12059
 # set_property PROBES.FILE "/home/bnl-wib/Documents/WTS_BNL/file/example_ibert_ultrascale_gth_0.ltx" $device
 # refresh_hw_device $device
 INFO: [Labtools 27-2302] Device xczu6 (JTAG device index = 0) is programmed with a design that has 1 IBERT core(s).
@@ -98,25 +98,25 @@ IBERT RX Channel BER Report:
 #     puts "--------------------------------------"
 # }
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y4/RX
-  BER: 5.3842118414734652e-08
-  ERROR_count: 000000000052
-  BIT_count: 1522971280
+  BER: 1.3828075594970605e-07
+  ERROR_count: 00000000005E
+  BIT_count: 679776440
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y5/RX
-  BER: 4.3365892320941252e-08
-  ERROR_count: 00000000005D
-  BIT_count: 2144542520
+  BER: 6.6932730075666626e-08
+  ERROR_count: 000000000049
+  BIT_count: 1090647280
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y6/RX
-  BER: 0.59959195627634043
-  ERROR_count: 000058A35A8F
-  BIT_count: 2480187640
+  BER: 0.59963107926225179
+  ERROR_count: 000033CB9DCA
+  BIT_count: 1449194760
 --------------------------------------
 RX Channel First: localhost:3121/xilinx_tcf/Digilent/210249A74687/0_1_0_0/IBERT/Quad_128/MGT_X0Y7/RX
-  BER: 0.57492632299810686
-  ERROR_count: 000062D7357D
-  BIT_count: 2884319320
+  BER: 0.42493774167613552
+  ERROR_count: 00002CD507DF
+  BIT_count: 1770044440
 --------------------------------------
 # close_hw_manager
 # exit
-INFO: [Common 17-206] Exiting vivado_lab at Wed Jun 17 15:36:00 2026...
+INFO: [Common 17-206] Exiting vivado_lab at Thu Sep  3 15:45:59 2026...

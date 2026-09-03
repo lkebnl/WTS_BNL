@@ -79,66 +79,54 @@ class TCP_CFG(tcp.TCPSocket, FE_ASIC_REG_MAPPING):
         self.femb_cd_wr(c_id=2, c_page=0, c_addr=0x20, c_data=5)
         self.cd_fc_cd_adc_sync()
 
+    # Suggested Line Driver settings, COLDATA datasheet pg.57-59.
+    # Selected by self.longcable: short cable uses the current-mode driver
+    # profile; long cable defaults to the "warm 25m" hybrid-driver profile
+    # (swap in the 35m / cold-operation tables from the datasheet if the
+    # actual cable length or cryogenic operating point differs).
+    _DRV_CFG_SHORT_CABLE = {
+        0x48: 0x00,  # DRV_VMBOOST
+        0x49: 0x00,  # DRV_VMDRIVER
+        0x4A: 0x00,  # DRV_SELPRE
+        0x4B: 0x00,  # DRV_SELPST1
+        0x4C: 0x00,  # DRV_SELPST2
+        0x4D: 0x0F,  # DRV_SELCM_MAIN
+        0x4E: 0x01,  # DRV_ENABLE_CM
+        0x4F: 0x00,  # DRV_INVERSE_CLK
+        0x50: 0x00,  # DRV_DELAYSEL
+        0x51: 0x0F,  # DRV_DELAY_CS
+        0x52: 0x01,  # DRV_CML
+        0x53: 0x01,  # DRV_BIAS_CML_INTERNAL
+        0x54: 0x01,  # DRV_BIAS_CS_INTERNAL
+    }
+    _DRV_CFG_LONG_CABLE_WARM_25M = {
+        0x48: 0x07,
+        0x49: 0x07,
+        0x4A: 0x01,
+        0x4B: 0x0A,
+        0x4C: 0x01,
+        0x4D: 0x00,
+        0x4E: 0x01,
+        0x4F: 0x00,
+        0x50: 0x00,
+        0x51: 0x0F,
+        0x52: 0x00,
+        0x53: 0x01,
+        0x54: 0x01,
+    }
+
+    def cd_drv_cfg(self, c_id):
+        profile = self._DRV_CFG_LONG_CABLE_WARM_25M if self.longcable else self._DRV_CFG_SHORT_CABLE
+        for addr, data in profile.items():
+            self.femb_wr_chk(c_id, c_page=0x05, c_addr=addr, c_data=data)
+
     def cd_cfg(self):
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x48, c_data=0x03)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x48)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x49, c_data=0x07)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x49)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x4A, c_data=0x00)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x4A)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x4B, c_data=0x02)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x4B)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x4C, c_data=0x00)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x4C)
-
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x4D, c_data=0x00)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x4D)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x4E, c_data=0x01)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x4E)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x4F, c_data=0x00)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x4F)
-
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x50, c_data=0x00)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x50)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x51, c_data=0x0F)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x51)
-
-
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x52, c_data=0x00)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x52)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x53, c_data=0x01)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x53)
-        self.femb_cd_wr(c_id=2, c_page=0x05, c_addr=0x54, c_data=0x01)
-        self.femb_cd_rd(c_id=2, c_page=0x05, c_addr=0x54)
-
-
-
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x48, c_data=0x03)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x48)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x49, c_data=0x07)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x49)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x4A, c_data=0x00)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x4A)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x4B, c_data=0x02)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x4B)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x4C, c_data=0x00)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x4C)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x4D, c_data=0x00)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x4D)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x4E, c_data=0x01)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x4E)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x4F, c_data=0x00)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x4F)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x50, c_data=0x00)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x50)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x51, c_data=0x0F)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x51)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x52, c_data=0x00)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x52)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x53, c_data=0x01)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x53)
-        self.femb_cd_wr(c_id=3, c_page=0x05, c_addr=0x54, c_data=0x01)
-        self.femb_cd_rd(c_id=3, c_page=0x05, c_addr=0x54)
+        # PLL band: datasheet default 0x20 works warm and cold, but 0x25 is
+        # the suggested midpoint of the tuning range.
+        self.femb_wr_chk(c_id=2, c_page=0x05, c_addr=0x41, c_data=0x25)
+        self.femb_wr_chk(c_id=3, c_page=0x05, c_addr=0x41, c_data=0x25)
+        self.cd_drv_cfg(c_id=2)
+        self.cd_drv_cfg(c_id=3)
 
     def femb_wr_chk(self, c_id, c_page, c_addr, c_data):
         self.femb_cd_wr(c_id, c_page, c_addr, c_data)
@@ -577,12 +565,11 @@ class TCP_CFG(tcp.TCPSocket, FE_ASIC_REG_MAPPING):
         time.sleep(0.1)
         print("LArASIC CFG ongoing...")
         self.set_fe_sync()
-        self.fe_spi_prog()  # here is fe_channel configuration
+        self.fe_spi_prog()  # already downloads the daisy chain to LArASIC via
+                             # SPI and verifies the readback comparison
+                             # (ACTSTATUSREG2 == 0xFF), so no separate
+                             # re-trigger is needed here.
         time.sleep(0.01)
-        # require a fe_configuration
-        self.tcp_cmd_io(cmd=0x12, aux=0xFF, addr=0x0, data=0x03002008)  # set data CHIP[03], PAGE[00], ADDR[20], DATA[08]
-        self.tcp_cmd_io(cmd=0x12, aux=0xFF, addr=0x0, data=0x02002008)  # set data CHIP[02], PAGE[00], ADDR[20], DATA[08]
-        self.tcp_cmd_io(cmd=0x14, aux=0xFF, addr=0x0, data=0x01)        # if(DATA == 1) set CD FAST COMMAND ACT
         self.LArASIC_cali() # enable test pulse clock
         self.fc_act_cal()   #
         # self.CD_sync_rst()
@@ -639,12 +626,11 @@ class TCP_CFG(tcp.TCPSocket, FE_ASIC_REG_MAPPING):
         time.sleep(0.1)
         print("LArASIC CFG ongoing...")
         self.set_fe_sync()
-        self.fe_spi_prog()  # here is fe_channel configuration
+        self.fe_spi_prog()  # already downloads the daisy chain to LArASIC via
+                             # SPI and verifies the readback comparison
+                             # (ACTSTATUSREG2 == 0xFF), so no separate
+                             # re-trigger is needed here.
         time.sleep(0.01)
-        # require a fe_configuration
-        self.tcp_cmd_io(cmd=0x12, aux=0xFF, addr=0x0, data=0x03002008)  # set data CHIP[03], PAGE[00], ADDR[20], DATA[08]
-        self.tcp_cmd_io(cmd=0x12, aux=0xFF, addr=0x0, data=0x02002008)  # set data CHIP[02], PAGE[00], ADDR[20], DATA[08]
-        self.tcp_cmd_io(cmd=0x14, aux=0xFF, addr=0x0, data=0x01)        # if(DATA == 1) set CD FAST COMMAND ACT
         self.LArASIC_cali() # enable test pulse clock
         self.fc_act_cal()   #
         # self.CD_sync_rst()
@@ -700,12 +686,16 @@ class TCP_CFG(tcp.TCPSocket, FE_ASIC_REG_MAPPING):
         # self.fc_act_rst_larasic()
         time.sleep(0.1)
         print("LArASIC CFG ongoing...")
-        self.fe_spi_prog()  # here is fe_channel configuration
+        self.set_fe_sync()  # repack REGS (set by set_fe_board() before this
+                             # call) into regs_int8; without this, fe_spi_prog()
+                             # below would silently re-push whatever channel
+                             # config was last synced (e.g. SEON mode's),
+                             # not this mode's settings.
+        self.fe_spi_prog()  # already downloads the daisy chain to LArASIC via
+                             # SPI and verifies the readback comparison
+                             # (ACTSTATUSREG2 == 0xFF), so no separate
+                             # re-trigger is needed here.
         time.sleep(0.01)
-        # require a fe_configuration
-        self.tcp_cmd_io(cmd=0x12, aux=0xFF, addr=0x0, data=0x03002008)  # set data CHIP[03], PAGE[00], ADDR[20], DATA[08]
-        self.tcp_cmd_io(cmd=0x12, aux=0xFF, addr=0x0, data=0x02002008)  # set data CHIP[02], PAGE[00], ADDR[20], DATA[08]
-        self.tcp_cmd_io(cmd=0x14, aux=0xFF, addr=0x0, data=0x01)        # if(DATA == 1) set CD FAST COMMAND ACT
         self.LArASIC_cali() # enable test pulse clock
         self.fc_act_cal()   #
         # self.CD_sync_rst()

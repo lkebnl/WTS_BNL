@@ -965,3 +965,11 @@ print("=" * 60)
 print(f"\nAll files saved to: {output_dir}")
 print("Ready for network drive copy.")
 
+# cycle_test.py (and any other caller) determines PASS/FAIL purely from this
+# process's exit code (subprocess.run(...).returncode == 0). Without this,
+# the script always exits 0 regardless of overall_status, which is why the
+# cycle summary showed "PASS" even after printing "Overall Status: FAIL" and
+# logging real bit errors on X0Y4/X0Y5 above.
+if overall_status != "PASS":
+    sys.exit(1)
+

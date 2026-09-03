@@ -1,9 +1,9 @@
 {
-  "WIB_ID": "toCERN 1B",
-  "Foam_Box_ID": "toCERN 1B",
+  "WIB_ID": "BNL_WIB_V3_I0-1750-1-F_00002",
+  "Foam_Box_ID": "https:__apa.dunedb.org_c_cptRuexrjz1RawsMHWWNPp",
   "tester": "lke",
   "test_site": "BNL",
-  "start_time": "2026-07-17 12:15:07",
-  "report_dir": "/home/bnl-wib/Documents/WIB_QC/toCERN 1B_07_17_2026_12_15",
+  "start_time": "2026-09-03 16:46:17",
+  "report_dir": "/home/bnl-wib/Documents/WIB_QC/BNL_WIB_V3_I0-1750-1-F_00002_09_03_2026_16_46",
   "comment": "QC test"
 }
